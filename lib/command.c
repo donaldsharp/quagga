@@ -2937,6 +2937,7 @@ DEFUN (config_exit,
     case BABEL_NODE:
     case OSPF_NODE:
     case OSPF6_NODE:
+    case EIGRP_NODE:
     case ISIS_NODE:
     case KEYCHAIN_NODE:
     case MASC_NODE:
@@ -2995,6 +2996,7 @@ DEFUN (config_end,
     case RMAP_NODE:
     case OSPF_NODE:
     case OSPF6_NODE:
+    case EIGRP_NODE:
     case ISIS_NODE:
     case KEYCHAIN_NODE:
     case KEYCHAIN_KEY_NODE:

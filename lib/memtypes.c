@@ -270,6 +270,11 @@ struct memory_list memory_list_pim[] =
   { MTYPE_PIM_UPSTREAM,          "PIM upstream (S,G) state"       },
   { MTYPE_PIM_SSMPINGD,          "PIM sspimgd socket"             },
   { MTYPE_PIM_STATIC_ROUTE,      "PIM Static Route"               },
+};
+
+struct memory_list memory_list_eigrp[] =
+{
+  { MTYPE_EIGRP_TOP,               "EIGRP top"                  },
   { -1, NULL },
 };
 
@@ -290,5 +295,6 @@ struct mlist mlists[] __attribute__ ((unused)) = {
   { memory_list_isis,	"ISIS"	},
   { memory_list_bgp,	"BGP"	},
   { memory_list_pim,	"PIM"	},
+  { memory_list_eigrp,  "EIGRP" },
   { NULL, NULL},
 };
