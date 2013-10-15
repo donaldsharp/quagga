@@ -26,6 +26,7 @@
 #include "table.h"
 #include "memory.h"
 #include "log.h"
+#include "linklist.h"
 
 #include "eigrpd/eigrp_topology.h"
 
