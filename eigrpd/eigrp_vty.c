@@ -257,6 +257,9 @@ eigrp_vty_init (void)
   install_element(EIGRP_NODE, &eigrp_network_cmd);
   install_element(EIGRP_NODE, &no_eigrp_network_cmd);
 
+  install_element(ENABLE_NODE,&show_ip_eigrp_topology_cmd);
+  install_element(VIEW_NODE,&show_ip_eigrp_topology_cmd);
+
 
 
 }
