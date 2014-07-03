@@ -28,6 +28,7 @@
 #include "zebra/rt.h"
 #include "zebra/redistribute.h"
 #include "zebra/connected.h"
+#include "zebra/rib.h"
 
 int kernel_route_rib (struct prefix *a, struct rib *old, struct rib *new) { return 0; }
 
@@ -52,9 +53,10 @@ int kernel_address_delete_ipv4 (struct interface *a, struct connected *b)
   return 0;
 }
 
-void kernel_init (void) { return; }
+void kernel_init (struct zebra_vrf *zvrf) { return; }
+void kernel_terminate (struct zebra_vrf *zvrf) { return; }
 #ifdef HAVE_SYS_WEAK_ALIAS_PRAGMA
 #pragma weak route_read = kernel_init
 #else
-void route_read (void) { return; }
+void route_read (struct zebra_vrf *zvrf) { return; }
 #endif

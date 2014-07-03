@@ -309,6 +309,17 @@ struct rtadv
 };
 #endif /* RTADV && HAVE_IPV6 */
 
+#ifdef HAVE_NETLINK
+/* Socket interface to kernel */
+struct nlsock
+{
+  int sock;
+  int seq;
+  struct sockaddr_nl snl;
+  const char *name;
+};
+#endif
+
 /* Routing table instance.  */
 struct zebra_vrf
 {
@@ -332,6 +343,12 @@ struct zebra_vrf
 
   /* Recursive Nexthop table */
   struct route_table *rnh_table[AFI_MAX];
+
+#ifdef HAVE_NETLINK
+  struct nlsock netlink;     /* kernel messages */
+  struct nlsock netlink_cmd; /* command channel */
+  struct thread *t_netlink;
+#endif
 
   /* 2nd pointer type used primarily to quell a warning on
    * ALL_LIST_ELEMENTS_RO
