@@ -148,7 +148,7 @@ void nhrp_route_announce(int add, enum nhrp_cache_type type, const struct prefix
 	}
 }
 
-int nhrp_route_read(int cmd, struct zclient *zclient, zebra_size_t length)
+int nhrp_route_read(int cmd, struct zclient *zclient, zebra_size_t length, vrf_id_t vrf_id)
 {
 	struct stream *s;
 	struct interface *ifp = NULL;
@@ -320,13 +320,13 @@ void nhrp_zebra_init(void)
 	zclient->ipv6_route_delete = nhrp_route_read;
 
 	zclient_init(zclient, ZEBRA_ROUTE_NHRP);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_KERNEL);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_CONNECT);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_STATIC);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_RIP);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_OSPF);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_ISIS);
-	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_BGP);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_KERNEL, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_CONNECT, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_STATIC, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_RIP, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_OSPF, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_ISIS, VRF_DEFAULT);
+	zclient_redistribute(ZEBRA_REDISTRIBUTE_ADD, zclient, ZEBRA_ROUTE_BGP, VRF_DEFAULT);
 }
 
 void nhrp_zebra_terminate(void)

@@ -30,6 +30,7 @@
 #include "log.h"
 #include "memory.h"
 #include "nexthop.h"
+#include "vrf.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_table.h"
@@ -327,7 +328,7 @@ sendmsg_nexthop (struct bgp_nexthop_cache *bnc, int command)
   p = &(bnc->node->p);
   s = zclient->obuf;
   stream_reset (s);
-  zclient_create_header (s, command);
+  zclient_create_header (s, command, VRF_DEFAULT);
   stream_putw(s, PREFIX_FAMILY(p));
   stream_putc(s, p->prefixlen);
   switch (PREFIX_FAMILY(p))

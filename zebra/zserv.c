@@ -134,12 +134,13 @@ zebra_server_send_message(struct zserv *client)
 }
 
 void
-zserv_create_header (struct stream *s, uint16_t cmd)
+zserv_create_header (struct stream *s, uint16_t cmd, vrf_id_t vrf_id)
 {
   /* length placeholder, caller can update */
   stream_putw (s, ZEBRA_HEADER_SIZE);
   stream_putc (s, ZEBRA_HEADER_MARKER);
   stream_putc (s, ZSERV_VERSION);
+  stream_putw (s, vrf_id);
   stream_putw (s, cmd);
 }
 
@@ -185,13 +186,13 @@ zsend_interface_add (struct zserv *client, struct interface *ifp)
   struct stream *s;
 
   /* Check this client need interface information. */
-  if (! client->ifinfo)
+  if (! vrf_bitmap_check (client->ifinfo, ifp->vrf_id))
     return 0;
 
   s = client->obuf;
   stream_reset (s);
 
-  zserv_create_header (s, ZEBRA_INTERFACE_ADD);
+  zserv_create_header (s, ZEBRA_INTERFACE_ADD, ifp->vrf_id);
   zserv_encode_interface (s, ifp);
 
   return zebra_server_send_message(client);
@@ -204,13 +205,13 @@ zsend_interface_delete (struct zserv *client, struct interface *ifp)
   struct stream *s;
 
   /* Check this client need interface information. */
-  if (! client->ifinfo)
+  if (! vrf_bitmap_check (client->ifinfo, ifp->vrf_id))
     return 0;
 
   s = client->obuf;
   stream_reset (s);
 
-  zserv_create_header (s, ZEBRA_INTERFACE_DELETE);
+  zserv_create_header (s, ZEBRA_INTERFACE_DELETE, ifp->vrf_id);
   zserv_encode_interface (s, ifp);
 
   return zebra_server_send_message (client);
@@ -263,13 +264,13 @@ zsend_interface_address (int cmd, struct zserv *client,
   struct prefix *p;
 
   /* Check this client need interface information. */
-  if (! client->ifinfo)
+  if (! vrf_bitmap_check (client->ifinfo, ifp->vrf_id))
     return 0;
 
   s = client->obuf;
   stream_reset (s);
   
-  zserv_create_header (s, cmd);
+  zserv_create_header (s, cmd, ifp->vrf_id);
   stream_putl (s, ifp->ifindex);
 
   /* Interface address flag. */
@@ -317,13 +318,13 @@ zsend_interface_update (int cmd, struct zserv *client, struct interface *ifp)
   struct stream *s;
 
   /* Check this client need interface information. */
-  if (! client->ifinfo)
+  if (! vrf_bitmap_check (client->ifinfo, ifp->vrf_id))
     return 0;
 
   s = client->obuf;
   stream_reset (s);
 
-  zserv_create_header (s, cmd);
+  zserv_create_header (s, cmd, ifp->vrf_id);
   zserv_encode_interface (s, ifp);
 
   return zebra_server_send_message(client);
@@ -362,11 +363,17 @@ zsend_route_multipath (int cmd, struct zserv *client, struct prefix *p,
   unsigned long nhnummark = 0, messmark = 0;
   int nhnum = 0;
   u_char zapi_flags = 0;
-  
+
+  /* Check this client need this route. */
+  if (!vrf_bitmap_check (client->redist[rib->type], rib->vrf_id) &&
+      !(is_default (p) &&
+        vrf_bitmap_check (client->redist_default, rib->vrf_id)))
+    return 0;
+
   s = client->obuf;
   stream_reset (s);
   
-  zserv_create_header (s, cmd);
+  zserv_create_header (s, cmd, rib->vrf_id);
   
   /* Put type and nexthop. */
   stream_putc (s, rib->type);
@@ -469,7 +476,8 @@ zsend_route_multipath (int cmd, struct zserv *client, struct prefix *p,
 
 #ifdef HAVE_IPV6
 static int
-zsend_ipv6_nexthop_lookup (struct zserv *client, struct in6_addr *addr)
+zsend_ipv6_nexthop_lookup (struct zserv *client, struct in6_addr *addr,
+    vrf_id_t vrf_id)
 {
   struct stream *s;
   struct rib *rib;
@@ -478,14 +486,14 @@ zsend_ipv6_nexthop_lookup (struct zserv *client, struct in6_addr *addr)
   struct nexthop *nexthop;
 
   /* Lookup nexthop. */
-  rib = rib_match_ipv6 (addr, VRF_DEFAULT);
+  rib = rib_match_ipv6 (addr, vrf_id);
 
   /* Get output stream. */
   s = client->obuf;
   stream_reset (s);
 
   /* Fill in result. */
-  zserv_create_header (s, ZEBRA_IPV6_NEXTHOP_LOOKUP);
+  zserv_create_header (s, ZEBRA_IPV6_NEXTHOP_LOOKUP, vrf_id);
   stream_put (s, &addr, 16);
 
   if (rib)
@@ -536,7 +544,8 @@ zsend_ipv6_nexthop_lookup (struct zserv *client, struct in6_addr *addr)
 #endif /* HAVE_IPV6 */
 
 static int
-zsend_ipv4_nexthop_lookup (struct zserv *client, struct in_addr addr)
+zsend_ipv4_nexthop_lookup (struct zserv *client, struct in_addr addr,
+    vrf_id_t vrf_id)
 {
   struct stream *s;
   struct rib *rib;
@@ -545,14 +554,14 @@ zsend_ipv4_nexthop_lookup (struct zserv *client, struct in_addr addr)
   struct nexthop *nexthop;
 
   /* Lookup nexthop - eBGP excluded */
-  rib = rib_match_ipv4_safi (addr, SAFI_UNICAST, 1, NULL, VRF_DEFAULT);
+  rib = rib_match_ipv4_safi (addr, SAFI_UNICAST, 1, NULL, vrf_id);
 
   /* Get output stream. */
   s = client->obuf;
   stream_reset (s);
 
   /* Fill in result. */
-  zserv_create_header (s, ZEBRA_IPV4_NEXTHOP_LOOKUP);
+  zserv_create_header (s, ZEBRA_IPV4_NEXTHOP_LOOKUP, vrf_id);
   stream_put_in_addr (s, &addr);
 
   if (rib)
@@ -623,7 +632,7 @@ zsend_ipv4_nexthop_lookup_mrib (struct zserv *client, struct in_addr addr,
   stream_reset (s);
 
   /* Fill in result. */
-  zserv_create_header (s, ZEBRA_IPV4_NEXTHOP_LOOKUP_MRIB);
+  zserv_create_header (s, ZEBRA_IPV4_NEXTHOP_LOOKUP_MRIB, rib->vrf_id);
   stream_put_in_addr (s, &addr);
 
   if (rib)
@@ -676,7 +685,7 @@ zsend_ipv4_nexthop_lookup_mrib (struct zserv *client, struct in_addr addr,
 
 /* Nexthop register */
 static int
-zserv_nexthop_register (struct zserv *client, int sock, u_short length)
+zserv_nexthop_register (struct zserv *client, int sock, u_short length, vrf_id_t vrf_id)
 {
   struct rnh *rnh;
   struct stream *s;
@@ -697,7 +706,7 @@ zserv_nexthop_register (struct zserv *client, int sock, u_short length)
       stream_get(&p.u.prefix, s, PSIZE(p.prefixlen));
       l += PSIZE(p.prefixlen);
       rnh = zebra_add_rnh(&p, 0);
-      zebra_add_rnh_client(rnh, client);
+      zebra_add_rnh_client(rnh, client, vrf_id);
     }
   zebra_evaluate_rnh_table(0, AF_INET, 0);
   zebra_evaluate_rnh_table(0, AF_INET6, 0);
@@ -734,7 +743,8 @@ zserv_nexthop_unregister (struct zserv *client, int sock, u_short length)
 }
 
 static int
-zsend_ipv4_import_lookup (struct zserv *client, struct prefix_ipv4 *p)
+zsend_ipv4_import_lookup (struct zserv *client, struct prefix_ipv4 *p,
+    vrf_id_t vrf_id)
 {
   struct stream *s;
   struct rib *rib;
@@ -743,14 +753,14 @@ zsend_ipv4_import_lookup (struct zserv *client, struct prefix_ipv4 *p)
   struct nexthop *nexthop;
 
   /* Lookup nexthop. */
-  rib = rib_lookup_ipv4 (p, VRF_DEFAULT);
+  rib = rib_lookup_ipv4 (p, vrf_id);
 
   /* Get output stream. */
   s = client->obuf;
   stream_reset (s);
 
   /* Fill in result. */
-  zserv_create_header (s, ZEBRA_IPV4_IMPORT_LOOKUP);
+  zserv_create_header (s, ZEBRA_IPV4_IMPORT_LOOKUP, vrf_id);
   stream_put_in_addr (s, &p->prefix);
 
   if (rib)
@@ -804,14 +814,14 @@ zsend_router_id_update (struct zserv *client, struct prefix *p,
   int blen;
 
   /* Check this client need interface information. */
-  if (!client->ridinfo)
+  if (! vrf_bitmap_check (client->ridinfo, vrf_id))
     return 0;
 
   s = client->obuf;
   stream_reset (s);
 
   /* Message type. */
-  zserv_create_header (s, ZEBRA_ROUTER_ID_UPDATE);
+  zserv_create_header (s, ZEBRA_ROUTER_ID_UPDATE, vrf_id);
 
   /* Prefix information. */
   stream_putc (s, p->family);
@@ -828,7 +838,7 @@ zsend_router_id_update (struct zserv *client, struct prefix *p,
 /* Register zebra server interface information.  Send current all
    interface and address information. */
 static int
-zread_interface_add (struct zserv *client, u_short length)
+zread_interface_add (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   struct listnode *ifnode, *ifnnode;
   struct listnode *cnode, *cnnode;
@@ -836,9 +846,9 @@ zread_interface_add (struct zserv *client, u_short length)
   struct connected *c;
 
   /* Interface information is needed. */
-  client->ifinfo = 1;
+  vrf_bitmap_set (client->ifinfo, vrf_id);
 
-  for (ALL_LIST_ELEMENTS (iflist, ifnode, ifnnode, ifp))
+  for (ALL_LIST_ELEMENTS (vrf_iflist (vrf_id), ifnode, ifnnode, ifp))
     {
       /* Skip pseudo interface. */
       if (! CHECK_FLAG (ifp->status, ZEBRA_INTERFACE_ACTIVE))
@@ -860,9 +870,9 @@ zread_interface_add (struct zserv *client, u_short length)
 
 /* Unregister zebra server interface information. */
 static int
-zread_interface_delete (struct zserv *client, u_short length)
+zread_interface_delete (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
-  client->ifinfo = 0;
+  vrf_bitmap_unset (client->ifinfo, vrf_id);
   return 0;
 }
 
@@ -872,7 +882,7 @@ zread_interface_delete (struct zserv *client, u_short length)
  * add kernel route. 
  */
 static int
-zread_ipv4_add (struct zserv *client, u_short length)
+zread_ipv4_add (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   int i;
   struct rib *rib;
@@ -907,7 +917,7 @@ zread_ipv4_add (struct zserv *client, u_short length)
   stream_get (&p.prefix, s, PSIZE (p.prefixlen));
 
   /* VRF ID */
-  rib->vrf_id = VRF_DEFAULT;
+  rib->vrf_id = vrf_id;
 
   /* Nexthop parse. */
   if (CHECK_FLAG (message, ZAPI_MESSAGE_NEXTHOP))
@@ -966,7 +976,7 @@ zread_ipv4_add (struct zserv *client, u_short length)
 
 /* Zebra server IPv4 prefix delete function. */
 static int
-zread_ipv4_delete (struct zserv *client, u_short length)
+zread_ipv4_delete (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   int i;
   struct stream *s;
@@ -1042,13 +1052,14 @@ zread_ipv4_delete (struct zserv *client, u_short length)
     api.metric = 0;
     
   rib_delete_ipv4 (api.type, api.flags, &p, nexthop_p, ifindex,
-                   VRF_DEFAULT, api.safi);
+                   vrf_id, api.safi);
   return 0;
 }
 
 /* Nexthop lookup for IPv4. */
 static int
-zread_ipv4_nexthop_lookup (struct zserv *client, u_short length)
+zread_ipv4_nexthop_lookup (struct zserv *client, u_short length,
+    vrf_id_t vrf_id)
 {
   struct in_addr addr;
   char buf[BUFSIZ];
@@ -1057,24 +1068,26 @@ zread_ipv4_nexthop_lookup (struct zserv *client, u_short length)
   if (IS_ZEBRA_DEBUG_PACKET && IS_ZEBRA_DEBUG_RECV)
     zlog_debug("%s: looking up %s", __func__,
                inet_ntop (AF_INET, &addr, buf, BUFSIZ));
-  return zsend_ipv4_nexthop_lookup (client, addr);
+  return zsend_ipv4_nexthop_lookup (client, addr, vrf_id);
 }
 
 /* MRIB Nexthop lookup for IPv4. */
 static int
-zread_ipv4_nexthop_lookup_mrib (struct zserv *client, u_short length)
+zread_ipv4_nexthop_lookup_mrib (struct zserv *client, u_short length,
+    vrf_id_t vrf_id)
 {
   struct in_addr addr;
   struct rib *rib;
 
   addr.s_addr = stream_get_ipv4 (client->ibuf);
-  rib = rib_match_ipv4_multicast (addr, NULL, VRF_DEFAULT);
+  rib = rib_match_ipv4_multicast (addr, NULL, vrf_id);
   return zsend_ipv4_nexthop_lookup_mrib (client, addr, rib);
 }
 
 /* Nexthop lookup for IPv4. */
 static int
-zread_ipv4_import_lookup (struct zserv *client, u_short length)
+zread_ipv4_import_lookup (struct zserv *client, u_short length,
+    vrf_id_t vrf_id)
 {
   struct prefix_ipv4 p;
 
@@ -1082,13 +1095,13 @@ zread_ipv4_import_lookup (struct zserv *client, u_short length)
   p.prefixlen = stream_getc (client->ibuf);
   p.prefix.s_addr = stream_get_ipv4 (client->ibuf);
 
-  return zsend_ipv4_import_lookup (client, &p);
+  return zsend_ipv4_import_lookup (client, &p, vrf_id);
 }
 
 #ifdef HAVE_IPV6
 /* Zebra server IPv6 prefix add function. */
 static int
-zread_ipv6_add (struct zserv *client, u_short length)
+zread_ipv6_add (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   int i;
   struct stream *s;
@@ -1152,18 +1165,18 @@ zread_ipv6_add (struct zserv *client, u_short length)
     
   if (IN6_IS_ADDR_UNSPECIFIED (&nexthop))
     rib_add_ipv6 (api.type, api.flags, &p, NULL, ifindex,
-                  VRF_DEFAULT, zebrad.rtm_table_default, api.metric, api.mtu,
+                  vrf_id, zebrad.rtm_table_default, api.metric, api.mtu,
                   api.distance, api.safi);
   else
     rib_add_ipv6 (api.type, api.flags, &p, &nexthop, ifindex,
-                  VRF_DEFAULT, zebrad.rtm_table_default, api.metric, api.mtu,
+                  vrf_id, zebrad.rtm_table_default, api.metric, api.mtu,
                   api.distance, api.safi);
   return 0;
 }
 
 /* Zebra server IPv6 prefix delete function. */
 static int
-zread_ipv6_delete (struct zserv *client, u_short length)
+zread_ipv6_delete (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   int i;
   struct stream *s;
@@ -1220,16 +1233,17 @@ zread_ipv6_delete (struct zserv *client, u_short length)
     api.metric = 0;
     
   if (IN6_IS_ADDR_UNSPECIFIED (&nexthop))
-    rib_delete_ipv6 (api.type, api.flags, &p, NULL, ifindex, VRF_DEFAULT,
+    rib_delete_ipv6 (api.type, api.flags, &p, NULL, ifindex, vrf_id,
                      api.safi);
   else
-    rib_delete_ipv6 (api.type, api.flags, &p, &nexthop, ifindex, VRF_DEFAULT,
+    rib_delete_ipv6 (api.type, api.flags, &p, &nexthop, ifindex, vrf_id,
                      api.safi);
   return 0;
 }
 
 static int
-zread_ipv6_nexthop_lookup (struct zserv *client, u_short length)
+zread_ipv6_nexthop_lookup (struct zserv *client, u_short length,
+    vrf_id_t vrf_id)
 {
   struct in6_addr addr;
   char buf[BUFSIZ];
@@ -1239,29 +1253,29 @@ zread_ipv6_nexthop_lookup (struct zserv *client, u_short length)
     zlog_debug("%s: looking up %s", __func__,
                inet_ntop (AF_INET6, &addr, buf, BUFSIZ));
 
-  return zsend_ipv6_nexthop_lookup (client, &addr);
+  return zsend_ipv6_nexthop_lookup (client, &addr, vrf_id);
 }
 #endif /* HAVE_IPV6 */
 
 /* Register zebra server router-id information.  Send current router-id */
 static int
-zread_router_id_add (struct zserv *client, u_short length)
+zread_router_id_add (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
   struct prefix p;
 
   /* Router-id information is needed. */
-  client->ridinfo = 1;
+  vrf_bitmap_set (client->ridinfo, vrf_id);
 
-  router_id_get (&p, VRF_DEFAULT);
+  router_id_get (&p, vrf_id);
 
-  return zsend_router_id_update (client, &p, VRF_DEFAULT);
+  return zsend_router_id_update (client, &p, vrf_id);
 }
 
 /* Unregister zebra server router-id information. */
 static int
-zread_router_id_delete (struct zserv *client, u_short length)
+zread_router_id_delete (struct zserv *client, u_short length, vrf_id_t vrf_id)
 {
-  client->ridinfo = 0;
+  vrf_bitmap_unset (client->ridinfo, vrf_id);
   return 0;
 }
 
@@ -1289,6 +1303,21 @@ zread_hello (struct zserv *client)
       route_type_oaths[proto] = client->sock;
       client->proto = proto;
     }
+}
+
+/* Unregister all information in a VRF. */
+static int
+zread_vrf_unregister (struct zserv *client, u_short length, vrf_id_t vrf_id)
+{
+  int i;
+
+  for (i = 0; i < ZEBRA_ROUTE_MAX; i++)
+    vrf_bitmap_unset (client->redist[i], vrf_id);
+  vrf_bitmap_unset (client->redist_default, vrf_id);
+  vrf_bitmap_unset (client->ifinfo, vrf_id);
+  vrf_bitmap_unset (client->ridinfo, vrf_id);
+
+  return 0;
 }
 
 /* If client sent routes of specific type, zebra removes it
@@ -1350,6 +1379,7 @@ static void
 zebra_client_create (int sock)
 {
   struct zserv *client;
+  int i;
 
   client = XCALLOC (0, sizeof (struct zserv));
 
@@ -1361,6 +1391,13 @@ zebra_client_create (int sock)
 
   /* Set table number. */
   client->rtm_table = zebrad.rtm_table_default;
+
+  /* Initialize flags */
+  for (i = 0; i < ZEBRA_ROUTE_MAX; i++)
+    client->redist[i] = vrf_bitmap_init ();
+  client->redist_default = vrf_bitmap_init ();
+  client->ifinfo = vrf_bitmap_init ();
+  client->ridinfo = vrf_bitmap_init ();
 
   /* Add this client to linked list. */
   listnode_add (zebrad.client_list, client);
@@ -1378,6 +1415,7 @@ zebra_client_read (struct thread *thread)
   size_t already;
   uint16_t length, command;
   uint8_t marker, version;
+  vrf_id_t vrf_id;
 
   /* Get thread data.  Reset reading thread because I'm running. */
   sock = THREAD_FD (thread);
@@ -1419,6 +1457,7 @@ zebra_client_read (struct thread *thread)
   length = stream_getw (client->ibuf);
   marker = stream_getc (client->ibuf);
   version = stream_getc (client->ibuf);
+  vrf_id = stream_getw (client->ibuf);
   command = stream_getw (client->ibuf);
 
   if (marker != ZEBRA_HEADER_MARKER || version != ZSERV_VERSION)
@@ -1471,71 +1510,74 @@ zebra_client_read (struct thread *thread)
     zlog_debug ("zebra message comes from socket [%d]", sock);
 
   if (IS_ZEBRA_DEBUG_PACKET && IS_ZEBRA_DEBUG_RECV)
-    zlog_debug ("zebra message received [%s] %d", 
-	       zserv_command_string (command), length);
+    zlog_debug ("zebra message received [%s] %d in VRF %u",
+	       zserv_command_string (command), length, vrf_id);
 
   switch (command) 
     {
     case ZEBRA_ROUTER_ID_ADD:
-      zread_router_id_add (client, length);
+      zread_router_id_add (client, length, vrf_id);
       break;
     case ZEBRA_ROUTER_ID_DELETE:
-      zread_router_id_delete (client, length);
+      zread_router_id_delete (client, length, vrf_id);
       break;
     case ZEBRA_INTERFACE_ADD:
-      zread_interface_add (client, length);
+      zread_interface_add (client, length, vrf_id);
       break;
     case ZEBRA_INTERFACE_DELETE:
-      zread_interface_delete (client, length);
+      zread_interface_delete (client, length, vrf_id);
       break;
     case ZEBRA_IPV4_ROUTE_ADD:
-      zread_ipv4_add (client, length);
+      zread_ipv4_add (client, length, vrf_id);
       break;
     case ZEBRA_IPV4_ROUTE_DELETE:
-      zread_ipv4_delete (client, length);
+      zread_ipv4_delete (client, length, vrf_id);
       break;
 #ifdef HAVE_IPV6
     case ZEBRA_IPV6_ROUTE_ADD:
-      zread_ipv6_add (client, length);
+      zread_ipv6_add (client, length, vrf_id);
       break;
     case ZEBRA_IPV6_ROUTE_DELETE:
-      zread_ipv6_delete (client, length);
+      zread_ipv6_delete (client, length, vrf_id);
       break;
 #endif /* HAVE_IPV6 */
     case ZEBRA_REDISTRIBUTE_ADD:
-      zebra_redistribute_add (command, client, length);
+      zebra_redistribute_add (command, client, length, vrf_id);
       break;
     case ZEBRA_REDISTRIBUTE_DELETE:
-      zebra_redistribute_delete (command, client, length);
+      zebra_redistribute_delete (command, client, length, vrf_id);
       break;
     case ZEBRA_REDISTRIBUTE_DEFAULT_ADD:
-      zebra_redistribute_default_add (command, client, length);
+      zebra_redistribute_default_add (command, client, length, vrf_id);
       break;
     case ZEBRA_REDISTRIBUTE_DEFAULT_DELETE:
-      zebra_redistribute_default_delete (command, client, length);
+      zebra_redistribute_default_delete (command, client, length, vrf_id);
       break;
     case ZEBRA_IPV4_NEXTHOP_LOOKUP:
-      zread_ipv4_nexthop_lookup (client, length);
+      zread_ipv4_nexthop_lookup (client, length, vrf_id);
       break;
     case ZEBRA_IPV4_NEXTHOP_LOOKUP_MRIB:
-      zread_ipv4_nexthop_lookup_mrib (client, length);
+      zread_ipv4_nexthop_lookup_mrib (client, length, vrf_id);
       break;
 #ifdef HAVE_IPV6
     case ZEBRA_IPV6_NEXTHOP_LOOKUP:
-      zread_ipv6_nexthop_lookup (client, length);
+      zread_ipv6_nexthop_lookup (client, length, vrf_id);
       break;
 #endif /* HAVE_IPV6 */
     case ZEBRA_IPV4_IMPORT_LOOKUP:
-      zread_ipv4_import_lookup (client, length);
+      zread_ipv4_import_lookup (client, length, vrf_id);
       break;
     case ZEBRA_HELLO:
       zread_hello (client);
       break;
     case ZEBRA_NEXTHOP_REGISTER:
-      zserv_nexthop_register(client, sock, length);
+      zserv_nexthop_register(client, sock, length, vrf_id);
       break;
     case ZEBRA_NEXTHOP_UNREGISTER:
       zserv_nexthop_unregister(client, sock, length);
+      break;
+    case ZEBRA_VRF_UNREGISTER:
+      zread_vrf_unregister (client, length, vrf_id);
       break;
     default:
       zlog_info ("Zebra received unknown command %d", command);

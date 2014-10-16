@@ -43,7 +43,7 @@ extern int zebra_rnh_ipv6_default_route;
 extern struct rnh *zebra_add_rnh(struct prefix *p, vrf_id_t vrfid);
 extern struct rnh *zebra_lookup_rnh(struct prefix *p, vrf_id_t vrfid);
 extern void zebra_delete_rnh(struct rnh *rnh);
-extern void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client);
+extern void zebra_add_rnh_client(struct rnh *rnh, struct zserv *client, vrf_id_t vrf_id);
 extern void zebra_remove_rnh_client(struct rnh *rnh, struct zserv *client);
 extern int zebra_evaluate_rnh_table(vrf_id_t vrfid, int family, int force);
 extern int zebra_dispatch_rnh_table(vrf_id_t vrfid, int family, struct zserv *cl);

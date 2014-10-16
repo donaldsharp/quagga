@@ -1601,10 +1601,11 @@ _netlink_route_debug(
     {
       char buf[PREFIX_STRLEN];
       zlog_debug ("netlink_route_multipath() (%s): %s %s vrf %u type %s",
-         routedesc,
-         lookup (nlmsg_str, cmd),
-         prefix2str (p, buf, sizeof(buf)),
-         nexthop_type_to_str (nexthop->type));
+		  routedesc,
+		  lookup (nlmsg_str, cmd),
+		  prefix2str (p, buf, sizeof(buf)),
+		  zvrf->vrf_id,
+		  nexthop_type_to_str (nexthop->type));
     }
 }
 

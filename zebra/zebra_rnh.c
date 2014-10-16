@@ -58,7 +58,7 @@
 static void free_state(struct rib *rib);
 static void copy_state(struct rnh *rnh, struct rib *rib);
 static int compare_state(struct rib *r1, struct rib *r2);
-static int send_client(struct rnh *rnh, struct zserv *client);
+static int send_client(struct rnh *rnh, struct zserv *client, vrf_id_t vrf_id);
 static void print_rnh(struct route_node *rn, struct vty *vty);
 
 int zebra_rnh_ip_default_route = 0;
@@ -155,7 +155,7 @@ zebra_delete_rnh (struct rnh *rnh)
 }
 
 void
-zebra_add_rnh_client (struct rnh *rnh, struct zserv *client)
+zebra_add_rnh_client (struct rnh *rnh, struct zserv *client, vrf_id_t vrf_id)
 {
   if (IS_ZEBRA_DEBUG_NHT)
     {
@@ -167,7 +167,7 @@ zebra_add_rnh_client (struct rnh *rnh, struct zserv *client)
   if (!listnode_lookup(rnh->client_list, client))
     {
       listnode_add(rnh->client_list, client);
-      send_client(rnh, client);
+      send_client(rnh, client, vrf_id);
     }
 }
 
@@ -292,7 +292,7 @@ zebra_evaluate_rnh_table (vrf_id_t vrfid, int family, int force)
 		       rib ? "reachable" : "unreachable");
 
 	  for (ALL_LIST_ELEMENTS_RO(rnh->client_list, node, client))
-	    send_client(rnh, client);
+	    send_client(rnh, client, vrfid);
 	}
     }
 
@@ -330,7 +330,7 @@ zebra_dispatch_rnh_table (vrf_id_t vrfid, int family, struct zserv *client)
 		     rnh->state ? "reachable" : "unreachable",
 		     zebra_route_string(client->proto));
 	}
-      send_client(rnh, client);
+      send_client(rnh, client, vrfid);
     }
   return 1;
 }
@@ -513,7 +513,7 @@ compare_state (struct rib *r1, struct rib *r2)
 }
 
 static int
-send_client (struct rnh *rnh, struct zserv *client)
+send_client (struct rnh *rnh, struct zserv *client, vrf_id_t vrf_id)
 {
   struct stream *s;
   struct rib *rib;
@@ -529,7 +529,7 @@ send_client (struct rnh *rnh, struct zserv *client)
   s = client->obuf;
   stream_reset (s);
 
-  zserv_create_header (s, ZEBRA_NEXTHOP_UPDATE);
+  zserv_create_header (s, ZEBRA_NEXTHOP_UPDATE, vrf_id);
 
   stream_putw(s, rn->p.family);
   stream_put_prefix (s, &rn->p);
