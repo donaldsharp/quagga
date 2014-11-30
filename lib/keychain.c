@@ -24,6 +24,7 @@ Boston, MA 02111-1307, USA.  */
 #include "memory.h"
 #include "linklist.h"
 #include "keychain.h"
+#include "vty.h"
 
 /* Master list of key chain. */
 struct list *keychain_list;
