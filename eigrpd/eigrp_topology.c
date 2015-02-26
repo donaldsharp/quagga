@@ -428,7 +428,7 @@ eigrp_topology_update_node_flags(struct eigrp_prefix_entry *dest)
 {
   struct listnode *node;
   struct eigrp_neighbor_entry *entry;
-  struct eigrp *eigrp = eigrp_lookup();
+  struct eigrp * eigrp = eigrp_lookup();
 
   for (ALL_LIST_ELEMENTS_RO(dest->entries, node, entry))
     {
