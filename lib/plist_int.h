@@ -29,6 +29,8 @@ enum prefix_name_type
   PREFIX_TYPE_NUMBER
 };
 
+struct pltrie_table;
+
 struct prefix_list
 {
   char *name;
@@ -43,6 +45,8 @@ struct prefix_list
 
   struct prefix_list_entry *head;
   struct prefix_list_entry *tail;
+
+  struct pltrie_table *trie;
 
   struct prefix_list *next;
   struct prefix_list *prev;
@@ -66,6 +70,9 @@ struct prefix_list_entry
 
   struct prefix_list_entry *next;
   struct prefix_list_entry *prev;
+
+  /* up the chain for best match search */
+  struct prefix_list_entry *next_best;
 };
 
 #endif /* _QUAGGA_PLIST_INT_H */
