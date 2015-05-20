@@ -5219,11 +5219,12 @@ ALIAS (ip_ospf_dead_interval_minimal,
 
 DEFUN (no_ip_ospf_dead_interval,
        no_ip_ospf_dead_interval_addr_cmd,
-       "no ip ospf dead-interval A.B.C.D",
+       "no ip ospf dead-interval <1-65535> A.B.C.D",
        NO_STR
        "IP Information\n"
        "OSPF interface commands\n"
        "Interval after which a neighbor is declared dead\n"
+       "Seconds\n"
        "Address of interface")
 {
   struct interface *ifp = vty->index;
@@ -5236,9 +5237,9 @@ DEFUN (no_ip_ospf_dead_interval,
   ifp = vty->index;
   params = IF_DEF_PARAMS (ifp);
 
-  if (argc == 1)
+  if (argc == 2)
     {
-      ret = inet_aton(argv[0], &addr);
+      ret = inet_aton(argv[1], &addr);
       if (!ret)
 	{
 	  vty_out (vty, "Please specify interface address by A.B.C.D%s",
@@ -5284,6 +5285,15 @@ DEFUN (no_ip_ospf_dead_interval,
 
   return CMD_SUCCESS;
 }
+
+ALIAS (no_ip_ospf_dead_interval,
+       no_ip_ospf_dead_interval_seconds_cmd,
+       "no ip ospf dead-interval <1-65535>",
+       NO_STR
+       "IP Information\n"
+       "OSPF interface commands\n"
+       "Interval after which a neighbor is declared dead\n"
+       "Seconds\n")
 
 ALIAS (no_ip_ospf_dead_interval,
        no_ip_ospf_dead_interval_cmd,
@@ -5363,11 +5373,12 @@ ALIAS (ip_ospf_hello_interval,
 
 DEFUN (no_ip_ospf_hello_interval,
        no_ip_ospf_hello_interval_addr_cmd,
-       "no ip ospf hello-interval A.B.C.D",
+       "no ip ospf hello-interval <1-65535> A.B.C.D",
        NO_STR
        "IP Information\n"
        "OSPF interface commands\n"
        "Time between HELLO packets\n"
+       "Seconds\n"
        "Address of interface")
 {
   struct interface *ifp = vty->index;
@@ -5378,9 +5389,9 @@ DEFUN (no_ip_ospf_hello_interval,
   ifp = vty->index;
   params = IF_DEF_PARAMS (ifp);
 
-  if (argc == 1)
+  if (argc == 2)
     {
-      ret = inet_aton(argv[0], &addr);
+      ret = inet_aton(argv[1], &addr);
       if (!ret)
 	{
 	  vty_out (vty, "Please specify interface address by A.B.C.D%s",
@@ -5404,6 +5415,15 @@ DEFUN (no_ip_ospf_hello_interval,
 
   return CMD_SUCCESS;
 }
+
+ALIAS (no_ip_ospf_hello_interval,
+       no_ip_ospf_hello_interval_seconds_cmd,
+       "no ip ospf hello-interval <1-65535>",
+       NO_STR
+       "IP Information\n"
+       "OSPF interface commands\n"
+       "Time between HELLO packets\n"
+       "Seconds\n")
 
 ALIAS (no_ip_ospf_hello_interval,
        no_ip_ospf_hello_interval_cmd,
@@ -7676,12 +7696,14 @@ ospf_vty_if_init (void)
   install_element (INTERFACE_NODE, &ip_ospf_dead_interval_minimal_cmd);
   install_element (INTERFACE_NODE, &no_ip_ospf_dead_interval_addr_cmd);
   install_element (INTERFACE_NODE, &no_ip_ospf_dead_interval_cmd);
+  install_element (INTERFACE_NODE, &no_ip_ospf_dead_interval_seconds_cmd);
   
   /* "ip ospf hello-interval" commands. */
   install_element (INTERFACE_NODE, &ip_ospf_hello_interval_addr_cmd);
   install_element (INTERFACE_NODE, &ip_ospf_hello_interval_cmd);
   install_element (INTERFACE_NODE, &no_ip_ospf_hello_interval_addr_cmd);
   install_element (INTERFACE_NODE, &no_ip_ospf_hello_interval_cmd);
+  install_element (INTERFACE_NODE, &no_ip_ospf_hello_interval_seconds_cmd);
 
   /* "ip ospf network" commands. */
   install_element (INTERFACE_NODE, &ip_ospf_network_cmd);
