@@ -37,6 +37,7 @@
 #include "network.h"
 #include "buffer.h"
 #include "nexthop.h"
+#include "vrf.h"
 
 #include "zebra/zserv.h"
 #include "zebra/router-id.h"
@@ -477,7 +478,7 @@ zsend_ipv6_nexthop_lookup (struct zserv *client, struct in6_addr *addr)
   struct nexthop *nexthop;
 
   /* Lookup nexthop. */
-  rib = rib_match_ipv6 (addr);
+  rib = rib_match_ipv6 (addr, VRF_DEFAULT);
 
   /* Get output stream. */
   s = client->obuf;
@@ -544,7 +545,7 @@ zsend_ipv4_nexthop_lookup (struct zserv *client, struct in_addr addr)
   struct nexthop *nexthop;
 
   /* Lookup nexthop - eBGP excluded */
-  rib = rib_match_ipv4_safi (addr, SAFI_UNICAST, 1, NULL);
+  rib = rib_match_ipv4_safi (addr, SAFI_UNICAST, 1, NULL, VRF_DEFAULT);
 
   /* Get output stream. */
   s = client->obuf;
@@ -742,7 +743,7 @@ zsend_ipv4_import_lookup (struct zserv *client, struct prefix_ipv4 *p)
   struct nexthop *nexthop;
 
   /* Lookup nexthop. */
-  rib = rib_lookup_ipv4 (p);
+  rib = rib_lookup_ipv4 (p, VRF_DEFAULT);
 
   /* Get output stream. */
   s = client->obuf;
@@ -904,6 +905,9 @@ zread_ipv4_add (struct zserv *client, u_short length)
   p.prefixlen = stream_getc (s);
   stream_get (&p.prefix, s, PSIZE (p.prefixlen));
 
+  /* VRF ID */
+  rib->vrf_id = VRF_DEFAULT;
+
   /* Nexthop parse. */
   if (CHECK_FLAG (message, ZAPI_MESSAGE_NEXTHOP))
     {
@@ -1037,7 +1041,7 @@ zread_ipv4_delete (struct zserv *client, u_short length)
     api.metric = 0;
     
   rib_delete_ipv4 (api.type, api.flags, &p, nexthop_p, ifindex,
-		   client->rtm_table, api.safi);
+                   VRF_DEFAULT, api.safi);
   return 0;
 }
 
@@ -1063,7 +1067,7 @@ zread_ipv4_nexthop_lookup_mrib (struct zserv *client, u_short length)
   struct rib *rib;
 
   addr.s_addr = stream_get_ipv4 (client->ibuf);
-  rib = rib_match_ipv4_multicast (addr, NULL);
+  rib = rib_match_ipv4_multicast (addr, NULL, VRF_DEFAULT);
   return zsend_ipv4_nexthop_lookup_mrib (client, addr, rib);
 }
 
@@ -1146,11 +1150,13 @@ zread_ipv6_add (struct zserv *client, u_short length)
     api.mtu = 0;
     
   if (IN6_IS_ADDR_UNSPECIFIED (&nexthop))
-    rib_add_ipv6 (api.type, api.flags, &p, NULL, ifindex, zebrad.rtm_table_default,
-                  api.metric, api.mtu, api.distance, api.safi);
+    rib_add_ipv6 (api.type, api.flags, &p, NULL, ifindex,
+                  VRF_DEFAULT, zebrad.rtm_table_default, api.metric, api.mtu,
+                  api.distance, api.safi);
   else
-    rib_add_ipv6 (api.type, api.flags, &p, &nexthop, ifindex, zebrad.rtm_table_default,
-                  api.metric, api.mtu, api.distance, api.safi);
+    rib_add_ipv6 (api.type, api.flags, &p, &nexthop, ifindex,
+                  VRF_DEFAULT, zebrad.rtm_table_default, api.metric, api.mtu,
+                  api.distance, api.safi);
   return 0;
 }
 
@@ -1213,9 +1219,11 @@ zread_ipv6_delete (struct zserv *client, u_short length)
     api.metric = 0;
     
   if (IN6_IS_ADDR_UNSPECIFIED (&nexthop))
-    rib_delete_ipv6 (api.type, api.flags, &p, NULL, ifindex, client->rtm_table, api.safi);
+    rib_delete_ipv6 (api.type, api.flags, &p, NULL, ifindex, VRF_DEFAULT,
+                     api.safi);
   else
-    rib_delete_ipv6 (api.type, api.flags, &p, &nexthop, ifindex, client->rtm_table, api.safi);
+    rib_delete_ipv6 (api.type, api.flags, &p, &nexthop, ifindex, VRF_DEFAULT,
+                     api.safi);
   return 0;
 }
 

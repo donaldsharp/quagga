@@ -37,6 +37,7 @@
 #include "thread.h"
 #include "privs.h"
 #include "nexthop.h"
+#include "vrf.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rt.h"
@@ -672,6 +673,7 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
   int index;
   int table;
+  int metric;
   u_int32_t mtu = 0;
 
   void *dest;
@@ -713,6 +715,7 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
     flags |= ZEBRA_FLAG_SELFROUTE;
 
   index = 0;
+  metric = 0;
   dest = NULL;
   gate = NULL;
   src = NULL;
@@ -730,6 +733,9 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
   if (tb[RTA_GATEWAY])
     gate = RTA_DATA (tb[RTA_GATEWAY]);
+
+  if (tb[RTA_PRIORITY])
+    metric = *(int *) RTA_DATA(tb[RTA_PRIORITY]);
 
   if (tb[RTA_METRICS])
     {
@@ -752,7 +758,7 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
       if (!tb[RTA_MULTIPATH])
           rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, src, index,
-                        table, 0, mtu, 0, SAFI_UNICAST);
+			VRF_DEFAULT, table, metric, mtu, 0, SAFI_UNICAST);
       else
         {
           /* This is a multipath route */
@@ -767,8 +773,9 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
           rib->type = ZEBRA_ROUTE_KERNEL;
           rib->distance = 0;
           rib->flags = flags;
-          rib->metric = 0;
           rib->mtu = mtu;
+          rib->metric = metric;
+          rib->vrf_id = VRF_DEFAULT;
           rib->table = table;
           rib->nexthop_num = 0;
           rib->uptime = time (NULL);
@@ -818,8 +825,8 @@ netlink_routing_table (struct sockaddr_nl *snl, struct nlmsghdr *h)
       memcpy (&p.prefix, dest, 16);
       p.prefixlen = rtm->rtm_dst_len;
 
-      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, index, table,
-		    0, mtu, 0, SAFI_UNICAST);
+      rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, flags, &p, gate, index, VRF_DEFAULT,
+                    table, metric, mtu, 0, SAFI_UNICAST);
     }
 #endif /* HAVE_IPV6 */
 
@@ -853,6 +860,7 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
   int index;
   int table;
+  int metric;
   u_int32_t mtu = 0;
 
   void *dest;
@@ -912,6 +920,7 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
     }
 
   index = 0;
+  metric = 0;
   dest = NULL;
   gate = NULL;
   src = NULL;
@@ -929,6 +938,9 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
 
   if (tb[RTA_PREFSRC])
     src = RTA_DATA (tb[RTA_PREFSRC]);
+
+  if (h->nlmsg_type == RTM_NEWROUTE && tb[RTA_PRIORITY])
+    metric = *(int *) RTA_DATA(tb[RTA_PRIORITY]);
 
   if (h->nlmsg_type == RTM_NEWROUTE)
     {
@@ -963,8 +975,8 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
       if (h->nlmsg_type == RTM_NEWROUTE)
         {
           if (!tb[RTA_MULTIPATH])
-            rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, src, index, table,
-                          0, mtu, 0, SAFI_UNICAST);
+            rib_add_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, src, index, VRF_DEFAULT,
+                          table, metric, mtu, 0, SAFI_UNICAST);
           else
             {
               /* This is a multipath route */
@@ -979,8 +991,9 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
               rib->type = ZEBRA_ROUTE_KERNEL;
               rib->distance = 0;
               rib->flags = 0;
-              rib->metric = 0;
               rib->mtu = mtu;
+              rib->metric = metric;
+              rib->vrf_id = VRF_DEFAULT;
               rib->table = table;
               rib->nexthop_num = 0;
               rib->uptime = time (NULL);
@@ -1023,7 +1036,8 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
             }
         }
       else
-        rib_delete_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, SAFI_UNICAST);
+        rib_delete_ipv4 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT,
+                         SAFI_UNICAST);
     }
 
 #ifdef HAVE_IPV6
@@ -1044,9 +1058,11 @@ netlink_route_change (struct sockaddr_nl *snl, struct nlmsghdr *h)
         }
 
       if (h->nlmsg_type == RTM_NEWROUTE)
-        rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, 0, mtu, 0, SAFI_UNICAST);
+        rib_add_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT, table,
+                      metric, mtu, 0, SAFI_UNICAST);
       else
-        rib_delete_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, table, SAFI_UNICAST);
+        rib_delete_ipv6 (ZEBRA_ROUTE_KERNEL, 0, &p, gate, index, VRF_DEFAULT,
+                         SAFI_UNICAST);
     }
 #endif /* HAVE_IPV6 */
 
