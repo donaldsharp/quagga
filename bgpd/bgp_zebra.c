@@ -1107,8 +1107,5 @@ bgp_zebra_init (void)
 #endif /* HAVE_IPV6 */
   zclient->nexthop_update = bgp_read_nexthop_update;
 
-  /* Interface related init. */
-  if_init ();
-
   bgp_nexthop_buf = stream_new(BGP_NEXTHOP_BUF_SIZE);
 }
