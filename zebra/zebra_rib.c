@@ -2605,7 +2605,7 @@ rib_add_ipv6 (int type, int flags, struct prefix_ipv6 *p,
   rib->flags = flags;
   rib->metric = metric;
   rib->mtu = mtu;
-  rib->table = table;
+  rib->table = table_id;
   rib->vrf_id = vrf_id;
   rib->nexthop_num = 0;
   rib->uptime = time (NULL);

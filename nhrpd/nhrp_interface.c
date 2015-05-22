@@ -12,6 +12,7 @@
 #include "linklist.h"
 #include "memory.h"
 #include "thread.h"
+#include "vrf.h"
 
 #include "nhrpd.h"
 #include "os.h"
@@ -46,14 +47,14 @@ static int nhrp_if_delete_hook(struct interface *ifp)
 
 void nhrp_interface_init(void)
 {
-	if_init();
+        vrf_init();
 	if_add_hook(IF_NEW_HOOK,    nhrp_if_new_hook);
 	if_add_hook(IF_DELETE_HOOK, nhrp_if_delete_hook);
 }
 
 void nhrp_interface_terminate(void)
 {
-	if_terminate();
+	vrf_terminate();
 }
 
 void nhrp_interface_update_mtu(struct interface *ifp, afi_t afi)
