@@ -166,11 +166,11 @@ typedef struct rib_dest_t_
   RIB_DEST_FOREACH_ROUTE_SAFE (rib_dest_from_rnode (rn), rib, next)
 
 /* Static route information. */
-struct static_ipv4
+struct static_route
 {
   /* For linked list. */
-  struct static_ipv4 *prev;
-  struct static_ipv4 *next;
+  struct static_route *prev;
+  struct static_route *next;
 
   /* VRF identifier. */
   vrf_id_t vrf_id;
@@ -180,47 +180,15 @@ struct static_ipv4
 
   /* Flag for this static route's type. */
   u_char type;
-#define STATIC_IPV4_GATEWAY     1
-#define STATIC_IPV4_IFNAME      2
-#define STATIC_IPV4_BLACKHOLE   3
+#define STATIC_IPV4_GATEWAY          1
+#define STATIC_IPV4_IFNAME           2
+#define STATIC_IPV4_BLACKHOLE        3
+#define STATIC_IPV6_GATEWAY          4
+#define STATIC_IPV6_GATEWAY_IFNAME   5
+#define STATIC_IPV6_IFNAME           6
 
   /* Nexthop value. */
-  union 
-  {
-    struct in_addr ipv4;
-    char *ifname;
-  } gate;
-
-  /* bit flags */
-  u_char flags;
-/*
- see ZEBRA_FLAG_REJECT
-     ZEBRA_FLAG_BLACKHOLE
- */
-};
-
-#ifdef HAVE_IPV6
-/* Static route information. */
-struct static_ipv6
-{
-  /* For linked list. */
-  struct static_ipv6 *prev;
-  struct static_ipv6 *next;
-
-  /* VRF identifier. */
-  vrf_id_t vrf_id;
-
-  /* Administrative distance. */
-  u_char distance;
-
-  /* Flag for this static route's type. */
-  u_char type;
-#define STATIC_IPV6_GATEWAY          1
-#define STATIC_IPV6_GATEWAY_IFNAME   2
-#define STATIC_IPV6_IFNAME           3
-
-  /* Nexthop value. */
-  struct in6_addr ipv6;
+  union g_addr addr;
   char *ifname;
 
   /* bit flags */
@@ -230,7 +198,6 @@ struct static_ipv6
      ZEBRA_FLAG_BLACKHOLE
  */
 };
-#endif /* HAVE_IPV6 */
 
 /* The following for loop allows to iterate over the nexthop
  * structure of routes.
