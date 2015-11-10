@@ -27,17 +27,9 @@
 #include "prefix.h"
 #include "table.h"
 #include "queue.h"
+#include "nexthop.h"
 
 #define DISTANCE_INFINITY  255
-
-/* Routing information base. */
-
-union g_addr {
-  struct in_addr ipv4;
-#ifdef HAVE_IPV6
-  struct in6_addr ipv6;
-#endif /* HAVE_IPV6 */
-};
 
 struct rib
 {
@@ -234,50 +226,6 @@ struct static_ipv6
 };
 #endif /* HAVE_IPV6 */
 
-enum nexthop_types_t
-{
-  NEXTHOP_TYPE_IFINDEX = 1,      /* Directly connected.  */
-  NEXTHOP_TYPE_IFNAME,           /* Interface route.  */
-  NEXTHOP_TYPE_IPV4,             /* IPv4 nexthop.  */
-  NEXTHOP_TYPE_IPV4_IFINDEX,     /* IPv4 nexthop with ifindex.  */
-  NEXTHOP_TYPE_IPV4_IFNAME,      /* IPv4 nexthop with ifname.  */
-  NEXTHOP_TYPE_IPV6,             /* IPv6 nexthop.  */
-  NEXTHOP_TYPE_IPV6_IFINDEX,     /* IPv6 nexthop with ifindex.  */
-  NEXTHOP_TYPE_IPV6_IFNAME,      /* IPv6 nexthop with ifname.  */
-  NEXTHOP_TYPE_BLACKHOLE,        /* Null0 nexthop.  */
-};
-
-/* Nexthop structure. */
-struct nexthop
-{
-  struct nexthop *next;
-  struct nexthop *prev;
-
-  /* Interface index. */
-  char *ifname;
-  unsigned int ifindex;
-  
-  enum nexthop_types_t type;
-
-  u_char flags;
-#define NEXTHOP_FLAG_ACTIVE     (1 << 0) /* This nexthop is alive. */
-#define NEXTHOP_FLAG_FIB        (1 << 1) /* FIB nexthop. */
-#define NEXTHOP_FLAG_RECURSIVE  (1 << 2) /* Recursive nexthop. */
-#define NEXTHOP_FLAG_ONLINK     (1 << 3) /* Nexthop should be installed onlink. */
-
-  /* Nexthop address */
-  union g_addr gate;
-  union g_addr src;
-
-  /* Nexthops obtained by recursive resolution.
-   *
-   * If the nexthop struct needs to be resolved recursively,
-   * NEXTHOP_FLAG_RECURSIVE will be set in flags and the nexthops
-   * obtained by recursive resolution will be added to `resolved'.
-   * Only one level of recursive resolution is currently supported. */
-  struct nexthop *resolved;
-};
-
 /* The following for loop allows to iterate over the nexthop
  * structure of routes.
  *
@@ -405,6 +353,9 @@ struct zebra_vrf
 #if defined (HAVE_IPV6) && defined (RTADV)
   struct rtadv rtadv;
 #endif /* RTADV && HAVE_IPV6 */
+
+  /* Recursive Nexthop table */
+  struct route_table *rnh_table[AFI_MAX];
 };
 
 /*
@@ -469,6 +420,10 @@ extern struct nexthop *nexthop_ipv4_ifindex_add (struct rib *,
                                                  struct in_addr *,
                                                  struct in_addr *,
                                                  unsigned int);
+extern void nexthop_free (struct nexthop *nexthop);
+extern void nexthops_free (struct nexthop *nexthop);
+extern void nexthop_add (struct rib *rib, struct nexthop *nexthop);
+
 extern int nexthop_has_fib_child(struct nexthop *);
 extern void rib_lookup_and_dump (struct prefix_ipv4 *);
 extern void rib_lookup_and_pushup (struct prefix_ipv4 *);
@@ -489,6 +444,8 @@ extern struct nexthop *nexthop_ipv6_ifindex_add (struct rib *rib,
 		        struct in6_addr *ipv6, unsigned int ifindex);
 
 #endif /* HAVE_IPV6 */
+
+extern struct zebra_vrf *zebra_vrf_lookup (vrf_id_t vrf_id);
 
 extern struct zebra_vrf *zebra_vrf_alloc (vrf_id_t);
 extern struct route_table *zebra_vrf_table (afi_t, safi_t, vrf_id_t);

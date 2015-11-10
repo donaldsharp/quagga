@@ -37,6 +37,7 @@
 #include "thread.h"
 #include "privs.h"
 #include "vrf.h"
+#include "nexthop.h"
 
 #include "zebra/zserv.h"
 #include "zebra/rt.h"
