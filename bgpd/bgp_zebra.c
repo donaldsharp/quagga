@@ -386,6 +386,7 @@ zebra_read_ipv4 (int command, struct zclient *zclient, zebra_size_t length,
   struct zapi_ipv4 api;
   struct in_addr nexthop;
   struct prefix_ipv4 p;
+  unsigned int ifindex;
 
   s = zclient->ibuf;
   nexthop.s_addr = 0;
@@ -410,7 +411,11 @@ zebra_read_ipv4 (int command, struct zclient *zclient, zebra_size_t length,
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_IFINDEX))
     {
       api.ifindex_num = stream_getc (s);
-      stream_getl (s); /* ifindex, unused */
+      ifindex = stream_getl (s); /* ifindex, unused */
+    }
+  else
+    {
+      ifindex = 0;
     }
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_DISTANCE))
     api.distance = stream_getc (s);
@@ -431,7 +436,7 @@ zebra_read_ipv4 (int command, struct zclient *zclient, zebra_size_t length,
 		     inet_ntop(AF_INET, &nexthop, buf[1], sizeof(buf[1])),
 		     api.metric);
 	}
-      bgp_redistribute_add((struct prefix *)&p, &nexthop, NULL,
+      bgp_redistribute_add((struct prefix *)&p, &nexthop, NULL, ifindex,
 			   api.metric, api.type);
     }
   else
@@ -463,6 +468,7 @@ zebra_read_ipv6 (int command, struct zclient *zclient, zebra_size_t length,
   struct zapi_ipv6 api;
   struct in6_addr nexthop;
   struct prefix_ipv6 p;
+  unsigned int ifindex;
 
   s = zclient->ibuf;
   memset (&nexthop, 0, sizeof (struct in6_addr));
@@ -487,7 +493,11 @@ zebra_read_ipv6 (int command, struct zclient *zclient, zebra_size_t length,
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_IFINDEX))
     {
       api.ifindex_num = stream_getc (s);
-      stream_getl (s); /* ifindex, unused */
+      ifindex = stream_getl (s); /* ifindex, unused */
+    }
+  else
+    {
+      ifindex = 0;
     }
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_DISTANCE))
     api.distance = stream_getc (s);
@@ -514,7 +524,7 @@ zebra_read_ipv6 (int command, struct zclient *zclient, zebra_size_t length,
 		     inet_ntop(AF_INET, &nexthop, buf[1], sizeof(buf[1])),
 		     api.metric);
 	}
-      bgp_redistribute_add ((struct prefix *)&p, NULL, &nexthop,
+      bgp_redistribute_add ((struct prefix *)&p, NULL, &nexthop, ifindex,
 			    api.metric, api.type);
     }
   else
