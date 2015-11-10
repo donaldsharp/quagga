@@ -2335,6 +2335,9 @@ bgp_get (struct bgp **bgp_val, as_t *as, const char *name)
   bgp_router_id_set(bgp, &router_id_zebra);
   *bgp_val = bgp;
 
+  bgp->t_rmap_update = NULL;
+  bgp->rmap_update_timer = RMAP_DEFAULT_UPDATE_TIMER;
+
   /* Create BGP server socket, if first instance.  */
   if (list_isempty(bm->bgp)
       && !bgp_option_check (BGP_OPT_NO_LISTEN))
@@ -2360,6 +2363,9 @@ bgp_delete (struct bgp *bgp)
   int i;
 
   THREAD_OFF (bgp->t_startup);
+
+  if (bgp->t_rmap_update)
+    BGP_TIMER_OFF(bgp->t_rmap_update);
 
   /* Delete static route. */
   bgp_static_delete (bgp);
@@ -4419,7 +4425,7 @@ peer_aslist_unset (struct peer *peer,afi_t afi, safi_t safi, int direct)
 }
 
 static void
-peer_aslist_update (void)
+peer_aslist_update (const char *aslist_name)
 {
   afi_t afi;
   safi_t safi;
@@ -4469,8 +4475,42 @@ peer_aslist_update (void)
 	}
     }
 }
+static void
+peer_aslist_add (char *aslist_name)
+{
+  peer_aslist_update (aslist_name);
+  route_map_notify_dependencies((char *)aslist_name, RMAP_EVENT_ASLIST_ADDED);
+}
+
+static void
+peer_aslist_del (const char *aslist_name)
+{
+  peer_aslist_update (aslist_name);
+  route_map_notify_dependencies((char *)aslist_name, RMAP_EVENT_ASLIST_DELETED);
+}
+
 
 /* Set route-map to the peer. */
+static void
+peer_reprocess_routes (struct peer *peer, int direct,
+		       afi_t afi, safi_t safi)
+{
+  if (peer->status != Established)
+    return;
+
+  if (direct != RMAP_OUT)
+    {
+      if (CHECK_FLAG (peer->af_flags[afi][safi],
+		      PEER_FLAG_SOFT_RECONFIG))
+	bgp_soft_reconfig_in (peer, afi, safi);
+      else if (CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_OLD_RCV)
+	       || CHECK_FLAG (peer->cap, PEER_CAP_REFRESH_NEW_RCV))
+	bgp_route_refresh_send (peer, afi, safi, 0, 0, 0);
+    }
+  else
+    bgp_announce_route(peer, afi, safi);
+}
+
 int
 peer_route_map_set (struct peer *peer, afi_t afi, safi_t safi, int direct, 
 		    const char *name)
@@ -4494,12 +4534,15 @@ peer_route_map_set (struct peer *peer, afi_t afi, safi_t safi, int direct,
 
   if (filter->map[direct].name)
     free (filter->map[direct].name);
-  
+
   filter->map[direct].name = strdup (name);
   filter->map[direct].map = route_map_lookup_by_name (name);
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    return 0;
+    {
+      peer_reprocess_routes(peer, direct, afi, safi);
+      return 0;
+    }
 
   group = peer->group;
   for (ALL_LIST_ELEMENTS (group->peer, node, nnode, peer))
@@ -4513,6 +4556,7 @@ peer_route_map_set (struct peer *peer, afi_t afi, safi_t safi, int direct,
 	free (filter->map[direct].name);
       filter->map[direct].name = strdup (name);
       filter->map[direct].map = route_map_lookup_by_name (name);
+      peer_reprocess_routes (peer, direct, afi, safi);
     }
   return 0;
 }
@@ -4560,7 +4604,10 @@ peer_route_map_unset (struct peer *peer, afi_t afi, safi_t safi, int direct)
   filter->map[direct].map = NULL;
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    return 0;
+    {
+      peer_reprocess_routes(peer, direct, afi, safi);
+      return 0;
+    }
 
   group = peer->group;
   for (ALL_LIST_ELEMENTS (group->peer, node, nnode, peer))
@@ -4574,6 +4621,7 @@ peer_route_map_unset (struct peer *peer, afi_t afi, safi_t safi, int direct)
 	free (filter->map[direct].name);
       filter->map[direct].name = NULL;
       filter->map[direct].map = NULL;
+      peer_reprocess_routes(peer, direct, afi, safi);
     }
   return 0;
 }
@@ -4602,7 +4650,10 @@ peer_unsuppress_map_set (struct peer *peer, afi_t afi, safi_t safi,
   filter->usmap.map = route_map_lookup_by_name (name);
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    return 0;
+    {
+      bgp_announce_route (peer, afi, safi);
+      return 0;
+    }
 
   group = peer->group;
   for (ALL_LIST_ELEMENTS (group->peer, node, nnode, peer))
@@ -4616,6 +4667,7 @@ peer_unsuppress_map_set (struct peer *peer, afi_t afi, safi_t safi,
 	free (filter->usmap.name);
       filter->usmap.name = strdup (name);
       filter->usmap.map = route_map_lookup_by_name (name);
+      bgp_announce_route (peer, afi, safi);
     }
   return 0;
 }
@@ -4642,7 +4694,10 @@ peer_unsuppress_map_unset (struct peer *peer, afi_t afi, safi_t safi)
   filter->usmap.map = NULL;
 
   if (! CHECK_FLAG (peer->sflags, PEER_STATUS_GROUP))
-    return 0;
+    {
+      bgp_announce_route(peer, afi, safi);
+      return 0;
+    }
 
   group = peer->group;
   for (ALL_LIST_ELEMENTS (group->peer, node, nnode, peer))
@@ -4656,6 +4711,7 @@ peer_unsuppress_map_unset (struct peer *peer, afi_t afi, safi_t safi)
 	free (filter->usmap.name);
       filter->usmap.name = NULL;
       filter->usmap.map = NULL;
+      bgp_announce_route(peer, afi, safi);
     }
   return 0;
 }
@@ -5724,6 +5780,10 @@ bgp_config_write (struct vty *vty)
 	vty_out (vty, " timers bgp %d %d%s", bgp->default_keepalive, 
 		 bgp->default_holdtime, VTY_NEWLINE);
 
+      if (bgp->rmap_update_timer != RMAP_DEFAULT_UPDATE_TIMER)
+	vty_out (vty, " bgp route-map delay-timer %d%s", bgp->rmap_update_timer,
+		 VTY_NEWLINE);
+
       /* peer-group */
       for (ALL_LIST_ELEMENTS (bgp->group, node, nnode, group))
 	{
@@ -5805,8 +5865,8 @@ bgp_init (void)
 
   /* Filter list initialize. */
   bgp_filter_init ();
-  as_list_add_hook (peer_aslist_update);
-  as_list_delete_hook (peer_aslist_update);
+  as_list_add_hook (peer_aslist_add);
+  as_list_delete_hook (peer_aslist_del);
 
   /* Prefix list initialize.*/
   prefix_list_init ();
