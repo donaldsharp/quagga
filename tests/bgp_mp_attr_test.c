@@ -25,6 +25,7 @@
 #include "stream.h"
 #include "privs.h"
 #include "memory.h"
+#include "linklist.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_attr.h"

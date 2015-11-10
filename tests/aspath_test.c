@@ -24,6 +24,7 @@
 #include "vty.h"
 #include "stream.h"
 #include "privs.h"
+#include "linklist.h"
 
 #include "bgpd/bgpd.h"
 #include "bgpd/bgp_aspath.h"
