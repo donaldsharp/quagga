@@ -35,6 +35,7 @@
 #include "prefix.h"
 #include "routemap.h"
 #include "vrf.h"
+#include "nexthop.h"
 
 #include "zebra/rib.h"
 #include "zebra/rt.h"
@@ -42,6 +43,7 @@
 #include "zebra/redistribute.h"
 #include "zebra/debug.h"
 #include "zebra/zebra_fpm.h"
+#include "zebra/zebra_rnh.h"
 
 /* Default rtm_table for all clients */
 extern struct zebra_t zebrad;
@@ -110,31 +112,6 @@ _rnode_zlog(const char *_func, struct route_node *rn, int priority,
 #define rnode_info(node, ...) \
 	_rnode_zlog(__func__, node, LOG_INFO, __VA_ARGS__)
 
-/*
- * nexthop_type_to_str
- */
-const char *
-nexthop_type_to_str (enum nexthop_types_t nh_type)
-{
-  static const char *desc[] = {
-    "none",
-    "Directly connected",
-    "Interface route",
-    "IPv4 nexthop",
-    "IPv4 nexthop with ifindex",
-    "IPv4 nexthop with ifname",
-    "IPv6 nexthop",
-    "IPv6 nexthop with ifindex",
-    "IPv6 nexthop with ifname",
-    "Null0 nexthop",
-  };
-
-  if (nh_type >= ZEBRA_NUM_OF (desc))
-    return "<Invalid nh type>";
-
-  return desc[nh_type];
-}
-
 /* Add nexthop to the end of a nexthop list.  */
 static void
 _nexthop_add (struct nexthop **target, struct nexthop *nexthop)
@@ -151,7 +128,7 @@ _nexthop_add (struct nexthop **target, struct nexthop *nexthop)
 }
 
 /* Add nexthop to the end of a rib node's nexthop list */
-static void
+void
 nexthop_add (struct rib *rib, struct nexthop *nexthop)
 {
   _nexthop_add(&rib->nexthop, nexthop);
@@ -171,10 +148,8 @@ nexthop_delete (struct rib *rib, struct nexthop *nexthop)
   rib->nexthop_num--;
 }
 
-static void nexthops_free(struct nexthop *nexthop);
-
 /* Free nexthop. */
-static void
+void
 nexthop_free (struct nexthop *nexthop)
 {
   if (nexthop->ifname)
@@ -185,7 +160,7 @@ nexthop_free (struct nexthop *nexthop)
 }
 
 /* Frees a list of nexthops */
-static void
+void
 nexthops_free (struct nexthop *nexthop)
 {
   struct nexthop *nh, *next;
@@ -1504,6 +1479,18 @@ process_subq (struct list * subq, u_char qindex)
   return 1;
 }
 
+/*
+ * All meta queues have been processed. Trigger next-hop evaluation.
+ */
+static void
+meta_queue_process_complete (struct work_queue *dummy)
+{
+  zebra_evaluate_rnh_table(0, AF_INET);
+#ifdef HAVE_IPV6
+  zebra_evaluate_rnh_table(0, AF_INET6);
+#endif /* HAVE_IPV6 */
+}
+
 /* Dispatch the meta queue by picking, processing and unlocking the next RN from
  * a non-empty sub-queue with lowest priority. wq is equal to zebra->ribq and data
  * is pointed to the meta queue structure.
@@ -1656,6 +1643,7 @@ rib_queue_init (struct zebra_t *zebra)
   /* fill in the work queue spec */
   zebra->ribq->spec.workfunc = &meta_queue_process;
   zebra->ribq->spec.errorfunc = NULL;
+  zebra->ribq->spec.completion_func = &meta_queue_process_complete;
   /* XXX: TODO: These should be runtime configurable via vty */
   zebra->ribq->spec.max_retries = 3;
   zebra->ribq->spec.hold = rib_process_hold_time;
@@ -3508,6 +3496,13 @@ rib_tables_iter_next (rib_tables_iter_t *iter)
   return table;
 }
 
+/* Lookup VRF by identifier.  */
+struct zebra_vrf *
+zebra_vrf_lookup (vrf_id_t vrf_id)
+{
+  return vrf_info_lookup (vrf_id);
+}
+
 /*
  * Create a routing table for the specific AFI/SAFI in the given VRF.
  */
@@ -3549,6 +3544,9 @@ zebra_vrf_alloc (vrf_id_t vrf_id)
   zebra_vrf_table_create (zvrf, AFI_IP6, SAFI_MULTICAST);
   zvrf->stable[AFI_IP][SAFI_MULTICAST] = route_table_init ();
   zvrf->stable[AFI_IP6][SAFI_MULTICAST] = route_table_init ();
+
+  zvrf->rnh_table[AFI_IP] = route_table_init();
+  zvrf->rnh_table[AFI_IP6] = route_table_init();
 
   /* Set VRF ID */
   zvrf->vrf_id = vrf_id;
