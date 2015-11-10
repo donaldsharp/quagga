@@ -1269,21 +1269,21 @@ show_ip_bgp_scan_tables (struct vty *vty, const char detail)
 	  vty_out (vty, " %s valid [IGP metric %d]%s",
 		   inet_ntop (AF_INET, &rn->p.u.prefix4, buf, INET6_ADDRSTRLEN), bnc->metric, VTY_NEWLINE);
 	  if (detail)
-	    for (i = 0; i < bnc->nexthop_num; i++)
-	      switch (bnc->nexthop[i].type)
+	    for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next)
+	      switch (nexthop->type)
 	      {
 	      case NEXTHOP_TYPE_IPV4:
-		vty_out (vty, "  gate %s%s", inet_ntop (AF_INET, &bnc->nexthop[i].gate.ipv4, buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
+		vty_out (vty, "  gate %s%s", inet_ntop (AF_INET, &nexthop->gate.ipv4, buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
 		break;
 	      case NEXTHOP_TYPE_IPV4_IFINDEX:
-		vty_out (vty, "  gate %s", inet_ntop (AF_INET, &bnc->nexthop[i].gate.ipv4, buf, INET6_ADDRSTRLEN));
-		vty_out (vty, " ifidx %u%s", bnc->nexthop[i].ifindex, VTY_NEWLINE);
+		vty_out (vty, "  gate %s", inet_ntop (AF_INET, &nexthop->gate.ipv4, buf, INET6_ADDRSTRLEN));
+		vty_out (vty, " ifidx %u%s", nexthop->ifindex, VTY_NEWLINE);
 		break;
 	      case NEXTHOP_TYPE_IFINDEX:
-		vty_out (vty, "  ifidx %u%s", bnc->nexthop[i].ifindex, VTY_NEWLINE);
+		vty_out (vty, "  ifidx %u%s", nexthop->ifindex, VTY_NEWLINE);
 		break;
 	      default:
-		vty_out (vty, "  invalid nexthop type %u%s", bnc->nexthop[i].type, VTY_NEWLINE);
+		vty_out (vty, "  invalid nexthop type %u%s", nexthop->type, VTY_NEWLINE);
 	      }
 	}
 	else
@@ -1304,17 +1304,17 @@ show_ip_bgp_scan_tables (struct vty *vty, const char detail)
 		     inet_ntop (AF_INET6, &rn->p.u.prefix6, buf, INET6_ADDRSTRLEN),
 		     bnc->metric, VTY_NEWLINE);
 	    if (detail)
-	      for (i = 0; i < bnc->nexthop_num; i++)
-		switch (bnc->nexthop[i].type)
+	      for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next)
+		switch (nexthop->type)
 		{
 		case NEXTHOP_TYPE_IPV6:
-		  vty_out (vty, "  gate %s%s", inet_ntop (AF_INET6, &bnc->nexthop[i].gate.ipv6, buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
+		  vty_out (vty, "  gate %s%s", inet_ntop (AF_INET6, &nexthop->gate.ipv6, buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
 		  break;
 		case NEXTHOP_TYPE_IFINDEX:
-		  vty_out (vty, "  ifidx %u%s", bnc->nexthop[i].ifindex, VTY_NEWLINE);
+		  vty_out (vty, "  ifidx %u%s", nexthop->ifindex, VTY_NEWLINE);
 		  break;
 		default:
-		  vty_out (vty, "  invalid nexthop type %u%s", bnc->nexthop[i].type, VTY_NEWLINE);
+		  vty_out (vty, "  invalid nexthop type %u%s", nexthop->type, VTY_NEWLINE);
 		}
 	  }
 	  else
@@ -1357,8 +1357,8 @@ show_ip_bgp_nexthop_table (struct vty *vty, int detail)
   struct bgp_node *rn;
   struct bgp_nexthop_cache *bnc;
   char buf[INET6_ADDRSTRLEN];
+  struct nexthop *nexthop;
   time_t tbuf;
-  u_char i;
 
   vty_out (vty, "Current BGP nexthop cache:%s", VTY_NEWLINE);
   for (rn = bgp_table_top (bgp_nexthop_cache_table[AFI_IP]); rn; rn = bgp_route_next (rn))
@@ -1370,28 +1370,28 @@ show_ip_bgp_nexthop_table (struct vty *vty, int detail)
 		   inet_ntop (AF_INET, &rn->p.u.prefix4, buf, INET6_ADDRSTRLEN),
 		   bnc->metric, bnc->path_count, VTY_NEWLINE);
 	  if (detail)
-	    for (i = 0; i < bnc->nexthop_num; i++)
-	      switch (bnc->nexthop[i].type)
-	      {
-	      case NEXTHOP_TYPE_IPV4:
-		vty_out (vty, "  gate %s%s",
-			 inet_ntop (AF_INET, &bnc->nexthop[i].gate.ipv4, buf,
-				    INET6_ADDRSTRLEN), VTY_NEWLINE);
-		break;
-	      case NEXTHOP_TYPE_IFINDEX:
-		vty_out (vty, "  if %s%s",
-			 ifindex2ifname(bnc->nexthop[i].ifindex), VTY_NEWLINE);
-		break;
-	      case NEXTHOP_TYPE_IPV4_IFINDEX:
-		vty_out (vty, "  gate %s, if %s%s",
-			 inet_ntop(AF_INET, &bnc->nexthop[i].gate.ipv4, buf,
-				   INET6_ADDRSTRLEN),
-			 ifindex2ifname(bnc->nexthop[i].ifindex), VTY_NEWLINE);
-		break;
-	      default:
-		vty_out (vty, "  invalid nexthop type %u%s",
-			 bnc->nexthop[i].type, VTY_NEWLINE);
-	      }
+	    for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next)
+	      switch (nexthop->type)
+		{
+		case NEXTHOP_TYPE_IPV4:
+		  vty_out (vty, "  gate %s%s",
+			   inet_ntop (AF_INET, &nexthop->gate.ipv4, buf,
+				      INET6_ADDRSTRLEN), VTY_NEWLINE);
+		  break;
+		case NEXTHOP_TYPE_IFINDEX:
+		  vty_out (vty, "  if %s%s",
+			   ifindex2ifname(nexthop->ifindex), VTY_NEWLINE);
+		  break;
+		case NEXTHOP_TYPE_IPV4_IFINDEX:
+		  vty_out (vty, "  gate %s, if %s%s",
+			   inet_ntop(AF_INET, &nexthop->gate.ipv4, buf,
+				     INET6_ADDRSTRLEN),
+			   ifindex2ifname(nexthop->ifindex), VTY_NEWLINE);
+		  break;
+		default:
+		  vty_out (vty, "  invalid nexthop type %u%s",
+			   nexthop->type, VTY_NEWLINE);
+		}
 	}
 	else
 	  vty_out (vty, " %s invalid%s",
@@ -1420,29 +1420,29 @@ show_ip_bgp_nexthop_table (struct vty *vty, int detail)
 				INET6_ADDRSTRLEN),
 		     bnc->metric, VTY_NEWLINE);
 	    if (detail)
-	      for (i = 0; i < bnc->nexthop_num; i++)
-		switch (bnc->nexthop[i].type)
-		{
-		case NEXTHOP_TYPE_IPV6:
-		  vty_out (vty, "  gate %s%s",
-			   inet_ntop (AF_INET6, &bnc->nexthop[i].gate.ipv6,
-				      buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
-		  break;
-		case NEXTHOP_TYPE_IPV6_IFINDEX:
-		  vty_out(vty, "  gate %s, if %s%s",
-			  inet_ntop(AF_INET6, &bnc->nexthop[i].gate.ipv6, buf,
-				    INET6_ADDRSTRLEN),
-			  ifindex2ifname(bnc->nexthop[i].ifindex),
-			  VTY_NEWLINE);
-		  break;
-		case NEXTHOP_TYPE_IFINDEX:
-		  vty_out (vty, "  ifidx %u%s", bnc->nexthop[i].ifindex,
-			   VTY_NEWLINE);
-		  break;
-		default:
-		  vty_out (vty, "  invalid nexthop type %u%s",
-			   bnc->nexthop[i].type, VTY_NEWLINE);
-		}
+	      for (nexthop = bnc->nexthop; nexthop; nexthop = nexthop->next)
+		switch (nexthop->type)
+		  {
+		  case NEXTHOP_TYPE_IPV6:
+		    vty_out (vty, "  gate %s%s",
+			     inet_ntop (AF_INET6, &nexthop->gate.ipv6,
+					buf, INET6_ADDRSTRLEN), VTY_NEWLINE);
+		    break;
+		  case NEXTHOP_TYPE_IPV6_IFINDEX:
+		    vty_out(vty, "  gate %s, if %s%s",
+			    inet_ntop(AF_INET6, &nexthop->gate.ipv6, buf,
+				      INET6_ADDRSTRLEN),
+			    ifindex2ifname(nexthop->ifindex),
+			    VTY_NEWLINE);
+		    break;
+		  case NEXTHOP_TYPE_IFINDEX:
+		    vty_out (vty, "  ifidx %u%s", nexthop->ifindex,
+			     VTY_NEWLINE);
+		    break;
+		  default:
+		    vty_out (vty, "  invalid nexthop type %u%s",
+			     nexthop->type, VTY_NEWLINE);
+		  }
 	  }
 	  else
 	    vty_out (vty, " %s invalid%s",
