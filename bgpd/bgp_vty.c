@@ -1669,6 +1669,7 @@ DEFUN (no_neighbor,
   union sockunion su;
   struct peer_group *group;
   struct peer *peer;
+  struct peer *other;
 
   ret = str2sockunion (argv[0], &su);
   if (ret < 0)
@@ -1686,7 +1687,12 @@ DEFUN (no_neighbor,
     {
       peer = peer_lookup (vty->index, &su);
       if (peer)
-        peer_delete (peer);
+	{
+	  other = peer->doppelganger;
+	  peer_delete (peer);
+	  if (other && other->status != Deleted)
+	    peer_delete(other);
+	}
     }
 
   return CMD_SUCCESS;
@@ -4486,12 +4492,16 @@ bgp_clear (struct vty *vty, struct bgp *bgp,  afi_t afi, safi_t safi,
   struct listnode *node, *nnode;
 
   /* Clear all neighbors. */
+  /*
+   * Pass along pointer to next node to peer_clear() when walking all nodes
+   * on the BGP instance as that may get freed if it is a doppelganger
+   */
   if (sort == clear_all)
     {
       for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
 	{
 	  if (stype == BGP_CLEAR_SOFT_NONE)
-	    ret = peer_clear (peer);
+	    ret = peer_clear (peer, &nnode);
 	  else
 	    ret = peer_clear_soft (peer, afi, safi, stype);
 
@@ -4527,7 +4537,7 @@ bgp_clear (struct vty *vty, struct bgp *bgp,  afi_t afi, safi_t safi,
 	}
 
       if (stype == BGP_CLEAR_SOFT_NONE)
-	ret = peer_clear (peer);
+	ret = peer_clear (peer, NULL);
       else
 	ret = peer_clear_soft (peer, afi, safi, stype);
 
@@ -4553,7 +4563,7 @@ bgp_clear (struct vty *vty, struct bgp *bgp,  afi_t afi, safi_t safi,
 	{
 	  if (stype == BGP_CLEAR_SOFT_NONE)
 	    {
-	      ret = peer_clear (peer);
+	      ret = peer_clear (peer, NULL);
 	      continue;
 	    }
 
@@ -4576,7 +4586,7 @@ bgp_clear (struct vty *vty, struct bgp *bgp,  afi_t afi, safi_t safi,
 	    continue;
 
 	  if (stype == BGP_CLEAR_SOFT_NONE)
-	    ret = peer_clear (peer);
+	    ret = peer_clear (peer, &nnode);
 	  else
 	    ret = peer_clear_soft (peer, afi, safi, stype);
 
@@ -4600,7 +4610,7 @@ bgp_clear (struct vty *vty, struct bgp *bgp,  afi_t afi, safi_t safi,
 
 	  find = 1;
 	  if (stype == BGP_CLEAR_SOFT_NONE)
-	    ret = peer_clear (peer);
+	    ret = peer_clear (peer, &nnode);
 	  else
 	    ret = peer_clear_soft (peer, afi, safi, stype);
 
@@ -7103,6 +7113,9 @@ bgp_show_summary (struct vty *vty, struct bgp *bgp, int afi, int safi)
   
   for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
     {
+      if (!CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
+	continue;
+
       if (peer->afc[afi][safi])
 	{
           if (!count)
@@ -8136,6 +8149,9 @@ bgp_show_neighbor (struct vty *vty, struct bgp *bgp,
 
   for (ALL_LIST_ELEMENTS (bgp->peer, node, nnode, peer))
     {
+      if (!CHECK_FLAG(peer->flags, PEER_FLAG_CONFIG_NODE))
+	continue;
+
       switch (type)
 	{
 	case show_all:

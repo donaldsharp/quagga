@@ -34,6 +34,7 @@
 #include "memory.h"
 #include "vtysh/vtysh.h"
 #include "log.h"
+#include "linklist.h"
 #include "bgpd/bgp_vty.h"
 #include "vrf.h"
 
