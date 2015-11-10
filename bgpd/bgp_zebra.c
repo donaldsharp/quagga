@@ -829,7 +829,7 @@ bgp_zebra_announce (struct prefix *p, struct bgp_info *info, struct bgp *bgp, sa
       if (nexthop == NULL)
 	return;
 
-      if (IN6_IS_ADDR_LINKLOCAL (nexthop) && ! ifindex)
+      if (!ifindex)
 	{
 	  if (info->peer->ifname)
 	    ifindex = ifname2ifindex (info->peer->ifname);
@@ -843,11 +843,12 @@ bgp_zebra_announce (struct prefix *p, struct bgp_info *info, struct bgp *bgp, sa
       for (mpinfo = bgp_info_mpath_first (info); mpinfo;
            mpinfo = bgp_info_mpath_next (mpinfo))
 	{
+	  ifindex = 0;
+
           /* Only global address nexthop exists. */
           if (mpinfo->attr->extra->mp_nexthop_len == 16)
-            {
               nexthop = &mpinfo->attr->extra->mp_nexthop_global;
-            }
+
           /* If both global and link-local address present. */
 	  if (mpinfo->attr->extra->mp_nexthop_len == 32)
             {
@@ -867,12 +868,13 @@ bgp_zebra_announce (struct prefix *p, struct bgp_info *info, struct bgp *bgp, sa
                   ifindex = mpinfo->peer->nexthop.ifp->ifindex;
                 }
             }
+
 	  if (nexthop == NULL)
 	    {
 	      continue;
 	    }
 
-          if (IN6_IS_ADDR_LINKLOCAL (nexthop) && ! ifindex)
+          if (!ifindex)
 	    {
 	      if (mpinfo->peer->ifname)
                 {
@@ -883,6 +885,7 @@ bgp_zebra_announce (struct prefix *p, struct bgp_info *info, struct bgp *bgp, sa
 		  ifindex = mpinfo->peer->nexthop.ifp->ifindex;
 		}
 	    }
+
 	  if (ifindex == 0)
 	    {
 	      continue;
