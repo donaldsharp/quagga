@@ -9244,7 +9244,7 @@ DEFUN (no_bgp_redistribute_ipv4,
   return bgp_redistribute_unset (vty->index, AFI_IP, type);
 }
 
-DEFUN (no_bgp_redistribute_ipv4_rmap,
+ALIAS (no_bgp_redistribute_ipv4,
        no_bgp_redistribute_ipv4_rmap_cmd,
        "no redistribute " QUAGGA_IP_REDIST_STR_BGPD " route-map WORD",
        NO_STR
@@ -9252,21 +9252,8 @@ DEFUN (no_bgp_redistribute_ipv4_rmap,
        QUAGGA_IP_REDIST_HELP_STR_BGPD
        "Route map reference\n"
        "Pointer to route-map entries\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_routemap_unset (vty->index, AFI_IP, type);
-  return CMD_SUCCESS;
-}
-
-DEFUN (no_bgp_redistribute_ipv4_metric,
+ALIAS (no_bgp_redistribute_ipv4,
        no_bgp_redistribute_ipv4_metric_cmd,
        "no redistribute " QUAGGA_IP_REDIST_STR_BGPD " metric <0-4294967295>",
        NO_STR
@@ -9274,21 +9261,8 @@ DEFUN (no_bgp_redistribute_ipv4_metric,
        QUAGGA_IP_REDIST_HELP_STR_BGPD
        "Metric for redistributed routes\n"
        "Default metric\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_metric_unset (vty->index, AFI_IP, type);
-  return CMD_SUCCESS;
-}
-
-DEFUN (no_bgp_redistribute_ipv4_rmap_metric,
+ALIAS (no_bgp_redistribute_ipv4,
        no_bgp_redistribute_ipv4_rmap_metric_cmd,
        "no redistribute " QUAGGA_IP_REDIST_STR_BGPD " route-map WORD metric <0-4294967295>",
        NO_STR
@@ -9298,22 +9272,8 @@ DEFUN (no_bgp_redistribute_ipv4_rmap_metric,
        "Pointer to route-map entries\n"
        "Metric for redistributed routes\n"
        "Default metric\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_metric_unset (vty->index, AFI_IP, type);
-  bgp_redistribute_routemap_unset (vty->index, AFI_IP, type);
-  return CMD_SUCCESS;
-}
-
-ALIAS (no_bgp_redistribute_ipv4_rmap_metric,
+ALIAS (no_bgp_redistribute_ipv4,
        no_bgp_redistribute_ipv4_metric_rmap_cmd,
        "no redistribute " QUAGGA_IP_REDIST_STR_BGPD " metric <0-4294967295> route-map WORD",
        NO_STR
@@ -9458,7 +9418,7 @@ DEFUN (no_bgp_redistribute_ipv6,
   return bgp_redistribute_unset (vty->index, AFI_IP6, type);
 }
 
-DEFUN (no_bgp_redistribute_ipv6_rmap,
+ALIAS (no_bgp_redistribute_ipv6,
        no_bgp_redistribute_ipv6_rmap_cmd,
        "no redistribute " QUAGGA_IP6_REDIST_STR_BGPD " route-map WORD",
        NO_STR
@@ -9466,21 +9426,8 @@ DEFUN (no_bgp_redistribute_ipv6_rmap,
        QUAGGA_IP6_REDIST_HELP_STR_BGPD
        "Route map reference\n"
        "Pointer to route-map entries\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP6, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_routemap_unset (vty->index, AFI_IP6, type);
-  return CMD_SUCCESS;
-}
-
-DEFUN (no_bgp_redistribute_ipv6_metric,
+ALIAS (no_bgp_redistribute_ipv6,
        no_bgp_redistribute_ipv6_metric_cmd,
        "no redistribute " QUAGGA_IP6_REDIST_STR_BGPD " metric <0-4294967295>",
        NO_STR
@@ -9488,21 +9435,8 @@ DEFUN (no_bgp_redistribute_ipv6_metric,
        QUAGGA_IP6_REDIST_HELP_STR_BGPD
        "Metric for redistributed routes\n"
        "Default metric\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP6, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_metric_unset (vty->index, AFI_IP6, type);
-  return CMD_SUCCESS;
-}
-
-DEFUN (no_bgp_redistribute_ipv6_rmap_metric,
+ALIAS (no_bgp_redistribute_ipv6,
        no_bgp_redistribute_ipv6_rmap_metric_cmd,
        "no redistribute " QUAGGA_IP6_REDIST_STR_BGPD " route-map WORD metric <0-4294967295>",
        NO_STR
@@ -9512,22 +9446,8 @@ DEFUN (no_bgp_redistribute_ipv6_rmap_metric,
        "Pointer to route-map entries\n"
        "Metric for redistributed routes\n"
        "Default metric\n")
-{
-  int type;
 
-  type = proto_redistnum (AFI_IP6, argv[0]);
-  if (type < 0 || type == ZEBRA_ROUTE_BGP)
-    {
-      vty_out (vty, "%% Invalid route type%s", VTY_NEWLINE);
-      return CMD_WARNING;
-    }
-
-  bgp_redistribute_metric_unset (vty->index, AFI_IP6, type);
-  bgp_redistribute_routemap_unset (vty->index, AFI_IP6, type);
-  return CMD_SUCCESS;
-}
-
-ALIAS (no_bgp_redistribute_ipv6_rmap_metric,
+ALIAS (no_bgp_redistribute_ipv6,
        no_bgp_redistribute_ipv6_metric_rmap_cmd,
        "no redistribute " QUAGGA_IP6_REDIST_STR_BGPD " metric <0-4294967295> route-map WORD",
        NO_STR
