@@ -745,7 +745,7 @@ struct bgp_nlri
 #define BGP_DEFAULT_HOLDTIME                     9
 #define BGP_DEFAULT_KEEPALIVE                    3
 #define BGP_DEFAULT_EBGP_ROUTEADV                0
-#define BGP_DEFAULT_IBGP_ROUTEADV                0
+#define BGP_DEFAULT_IBGP_ROUTEADV                5
 #define BGP_CLEAR_CONNECT_RETRY                 20
 #define BGP_DEFAULT_CONNECT_RETRY               10
 
