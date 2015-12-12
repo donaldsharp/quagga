@@ -49,6 +49,7 @@
 #include "sigevent.h"
 #include "zclient.h"
 #include "keychain.h"
+#include "distribute.h"
 
 #include "eigrpd/eigrp_structs.h"
 #include "eigrpd/eigrpd.h"
@@ -135,7 +136,7 @@ struct thread_master *master;
 const char *pid_file = PATH_EIGRPD_PID;
 
 /* Configuration filename and directory. */
-char *config_default = SYSCONFDIR EIGRP_DEFAULT_CONFIG;
+char config_default[] = SYSCONFDIR EIGRP_DEFAULT_CONFIG;
 
 /* SIGHUP handler. */
 static void 

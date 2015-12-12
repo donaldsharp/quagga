@@ -59,7 +59,6 @@ eigrp_query_send_all (struct eigrp *eigrp)
 {
   struct eigrp_interface *iface;
   struct listnode *node, *node2, *nnode2;
-  struct eigrp_neighbor *nbr;
   struct eigrp_prefix_entry *pe;
   u_int32_t counter;
 
@@ -95,8 +94,6 @@ eigrp_query_receive (struct eigrp *eigrp, struct ip *iph, struct eigrp_header *e
 {
   struct eigrp_neighbor *nbr;
   struct TLV_IPv4_Internal_type *tlv;
-  struct eigrp_prefix_entry *temp_tn;
-  struct eigrp_neighbor_entry *temp_te;
 
   u_int16_t type;
 
@@ -156,7 +153,7 @@ eigrp_query_receive (struct eigrp *eigrp, struct ip *iph, struct eigrp_header *e
 void
 eigrp_send_query (struct eigrp_interface *ei)
 {
-  struct eigrp_packet *ep, *duplicate;
+  struct eigrp_packet *ep;
   u_int16_t length = EIGRP_HEADER_LEN;
   struct listnode *node, *nnode, *node2, *nnode2;
   struct eigrp_neighbor *nbr;

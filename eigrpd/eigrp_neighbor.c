@@ -120,7 +120,7 @@ eigrp_nbr_lookup_by_addr (struct eigrp_interface *ei, struct in_addr *addr)
 
   for (ALL_LIST_ELEMENTS (ei->nbrs, node, nnode, nbr))
       {
-        if (addr == nbr->src.s_addr)
+        if (addr->s_addr == nbr->src.s_addr)
           {
             return nbr;
           }
@@ -214,20 +214,17 @@ eigrp_nbr_state_str (struct eigrp_neighbor *nbr)
   switch (nbr->state)
     {
     case EIGRP_NEIGHBOR_DOWN:
-      {
-	state = "Down";
-	break;
-      }
+      state = "Down";
+      break;
     case EIGRP_NEIGHBOR_PENDING:
-      {
-	state = "Waiting for Init";
-	break;
-      }
+      state = "Waiting for Init";
+      break;
     case EIGRP_NEIGHBOR_UP:
-      {
-	state = "Up";
-	break;
-      }
+      state = "Up";
+      break;
+    default:
+      state = "Unknown";
+      break;
     }
 
   return(state);

@@ -238,21 +238,6 @@ eigrp_check_md5_digest (struct stream *s, struct TLV_MD5_Authentication_Type *au
   return 1;
 }
 
-static int
-strnzcpyn(char *dst, const char *src, int size)
-{
-        char *dptr;
-        if (!size) return 0;
-
-        dptr = dst;
-
-        while (--size)
-                if (!(*dptr++ = *src++)) return (dptr-dst)-1;
-        *dptr = 0;
-
-        return (dptr-dst)-1;
-}
-
 int
 eigrp_make_sha256_digest (struct eigrp_interface *ei, struct stream *s, u_char flags)
 {
@@ -260,8 +245,6 @@ eigrp_make_sha256_digest (struct eigrp_interface *ei, struct stream *s, u_char f
     struct keychain *keychain;
     char *source_ip;
     int saved_len;
-    char saved_key[PLAINTEXT_LENGTH + 1];
-
 
     unsigned char digest[EIGRP_AUTH_TYPE_SHA256_LEN];
     unsigned char buffer[1 + PLAINTEXT_LENGTH + 45 + 1] = { 0 };
@@ -283,9 +266,6 @@ eigrp_make_sha256_digest (struct eigrp_interface *ei, struct stream *s, u_char f
     keychain = keychain_lookup(IF_DEF_PARAMS (ei->ifp)->auth_keychain);
      if(keychain)
        key = key_lookup_for_send(keychain);
-
-//     saved_len[index] = strnzcpyn(saved_key[index], key,
-//                             PLAINTEXT_LENGTH + 1);
 
      source_ip = calloc(16, sizeof(char));
      inet_ntop(AF_INET, &ei->address->u.prefix4, source_ip, 16);

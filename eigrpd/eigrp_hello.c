@@ -39,6 +39,7 @@
 #include "log.h"
 #include "sockopt.h"
 #include "checksum.h"
+#include "vty.h"
 #include "md5.h"
 
 #include "eigrpd/eigrp_structs.h"
@@ -398,7 +399,6 @@ eigrp_sw_version_encode (struct stream *s)
 static u_int16_t
 eigrp_tidlist_encode (struct stream *s)
 {
-  u_int16_t length = EIGRP_TLV_SW_VERSION_LEN;
   return 0;
 }
 

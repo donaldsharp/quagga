@@ -121,14 +121,13 @@ eigrp_zebra_read_ipv4 (int command, struct zclient *zclient,
 {
   struct stream *s;
   struct zapi_ipv4 api;
-  unsigned long ifindex;
+  unsigned long ifindex = 0;
   struct in_addr nexthop;
   struct prefix_ipv4 p;
   struct TLV_IPv4_External_type *external_tlv;
   struct eigrp *eigrp;
 
   s = zclient->ibuf;
-  ifindex = 0;
   nexthop.s_addr = 0;
 
   /* Type, flags, message. */

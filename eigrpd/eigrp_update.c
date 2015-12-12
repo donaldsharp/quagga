@@ -52,7 +52,7 @@
 #include "eigrpd/eigrp_macros.h"
 #include "eigrpd/eigrp_topology.h"
 #include "eigrpd/eigrp_fsm.h"
-
+#include "eigrpd/eigrp_network.h"
 
 /*
  * EIGRP UPDATE read function
@@ -67,7 +67,6 @@ eigrp_update_receive (struct eigrp *eigrp, struct ip *iph, struct eigrp_header *
   struct eigrp_neighbor_entry *ne;
   u_int32_t flags;
   u_int16_t type;
-  uint16_t  length;
   u_char same;
   struct access_list *alist;
 
@@ -170,33 +169,31 @@ eigrp_update_receive (struct eigrp *eigrp, struct ip *iph, struct eigrp_header *
               ne->ei = ei;
               ne->adv_router = nbr;
               ne->reported_metric = tlv->metric;
-              ne->reported_distance = eigrp_calculate_metrics(eigrp,
-                  &tlv->metric);
-
-
+              ne->reported_distance =
+		eigrp_calculate_metrics(eigrp,
+					&tlv->metric);
               /*
-			   * Check if there is any access-list on interface (IN direction)
-			   *  and set distance to max
-			   */
-			  alist = ei->list[EIGRP_FILTER_IN];
+	       * Check if there is any access-list on interface (IN direction)
+	       *  and set distance to max
+	       */
+	      alist = ei->list[EIGRP_FILTER_IN];
 
-			  if (alist) {
-				  zlog_info ("ALIST:");
-				  zlog_info (alist->name);
-			  } else {
-				  zlog_info("ALIST je prazdny");
-			  }
+	      if (alist) {
+		zlog_info ("ALIST: %s", alist->name);
+	      } else {
+		zlog_info("ALIST je prazdny");
+	      }
 
-			  if (alist && access_list_apply (alist,
-						 (struct prefix *) dest_addr) == FILTER_DENY)
-			  {
-				  zlog_info("Nastavujem metriku na MAX");
-				  ne->distance = 1600000;
-			  } else {
-				  zlog_info("NENastavujem metriku ");
-				  ne->distance = eigrp_calculate_total_metrics(eigrp, ne);
-			  }
-			  zlog_info("Distance: %d", ne->distance);
+	      if (alist && access_list_apply (alist,
+					      (struct prefix *) dest_addr) == FILTER_DENY)
+		{
+		  zlog_info("Nastavujem metriku na MAX");
+		  ne->distance = 1600000;
+		} else {
+		zlog_info("NENastavujem metriku ");
+		ne->distance = eigrp_calculate_total_metrics(eigrp, ne);
+	      }
+	      zlog_info("Distance: %d", ne->distance);
 
               pe->fdistance = pe->distance = pe->rdistance =
                   ne->distance;
@@ -343,8 +340,8 @@ eigrp_update_send_EOT (struct eigrp_neighbor *nbr)
 void
 eigrp_update_send (struct eigrp_interface *ei)
 {
-  struct eigrp_packet *ep, *duplicate;
-  struct listnode *node, *nnode, *node2, *nnode2;
+  struct eigrp_packet *ep;
+  struct listnode *node, *nnode;
   struct eigrp_neighbor *nbr;
   struct eigrp_prefix_entry *pe;
   u_char has_tlv;
