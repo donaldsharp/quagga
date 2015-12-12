@@ -89,8 +89,7 @@ static int eigrp_retrans_count_exceeded(struct eigrp_packet *ep, struct eigrp_ne
 int
 eigrp_make_md5_digest (struct eigrp_interface *ei, struct stream *s, u_char flags)
 {
-
-  struct key *key;
+  struct key *key = NULL;
   struct keychain *keychain;
 
   unsigned char digest[EIGRP_AUTH_TYPE_MD5_LEN];
@@ -110,38 +109,40 @@ eigrp_make_md5_digest (struct eigrp_interface *ei, struct stream *s, u_char flag
   stream_set_getp(s, backup_get);
 
   keychain = keychain_lookup(IF_DEF_PARAMS (ei->ifp)->auth_keychain);
-   if(keychain)
-     key = key_lookup_for_send(keychain);
+  if(keychain)
+    key = key_lookup_for_send(keychain);
+  else
+    return EIGRP_AUTH_TYPE_NONE;
 
-   memset(&ctx, 0, sizeof(ctx));
-   MD5Init(&ctx);
+  memset(&ctx, 0, sizeof(ctx));
+  MD5Init(&ctx);
 
-   /* Generate a digest. Each situation needs different handling */
-   if(flags & EIGRP_AUTH_BASIC_HELLO_FLAG)
-     {
-       MD5Update(&ctx, ibuf, EIGRP_MD5_BASIC_COMPUTE);
-       MD5Update(&ctx, key->string, strlen(key->string));
-       if(strlen(key->string) < 16)
-         MD5Update(&ctx, zeropad, 16 - strlen(key->string));
-     }
-   else if(flags & EIGRP_AUTH_UPDATE_INIT_FLAG)
-     {
-       MD5Update(&ctx, ibuf, EIGRP_MD5_UPDATE_INIT_COMPUTE);
-     }
-   else if(flags & EIGRP_AUTH_UPDATE_FLAG)
-     {
-       MD5Update(&ctx, ibuf, EIGRP_MD5_BASIC_COMPUTE);
-       MD5Update(&ctx, key->string, strlen(key->string));
-       if(strlen(key->string) < 16)
-         MD5Update(&ctx, zeropad, 16 - strlen(key->string));
-       if(backup_end > (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE))
-         {
-           MD5Update(&ctx, ibuf + (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE),
-               backup_end - 20 - (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE));
-         }
-     }
+  /* Generate a digest. Each situation needs different handling */
+  if(flags & EIGRP_AUTH_BASIC_HELLO_FLAG)
+    {
+      MD5Update(&ctx, ibuf, EIGRP_MD5_BASIC_COMPUTE);
+      MD5Update(&ctx, key->string, strlen(key->string));
+      if(strlen(key->string) < 16)
+	MD5Update(&ctx, zeropad, 16 - strlen(key->string));
+    }
+  else if(flags & EIGRP_AUTH_UPDATE_INIT_FLAG)
+    {
+      MD5Update(&ctx, ibuf, EIGRP_MD5_UPDATE_INIT_COMPUTE);
+    }
+  else if(flags & EIGRP_AUTH_UPDATE_FLAG)
+    {
+      MD5Update(&ctx, ibuf, EIGRP_MD5_BASIC_COMPUTE);
+      MD5Update(&ctx, key->string, strlen(key->string));
+      if(strlen(key->string) < 16)
+	MD5Update(&ctx, zeropad, 16 - strlen(key->string));
+      if(backup_end > (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE))
+	{
+	  MD5Update(&ctx, ibuf + (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE),
+		    backup_end - 20 - (EIGRP_HEADER_LEN + EIGRP_AUTH_MD5_TLV_SIZE));
+	}
+    }
 
-   MD5Final(digest, &ctx);
+  MD5Final(digest, &ctx);
 
   /* Append md5 digest to the end of the stream. */
   memcpy(auth_TLV->digest,digest,EIGRP_AUTH_TYPE_MD5_LEN);

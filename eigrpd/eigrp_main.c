@@ -289,8 +289,6 @@ main (int argc, char **argv)
   eigrp_zebra_init ();
   eigrp_debug_init ();
 
-
-  sort_node ();
   /* Get configuration file. */
   /* EIGRP VTY inits */
   eigrp_vty_init ();

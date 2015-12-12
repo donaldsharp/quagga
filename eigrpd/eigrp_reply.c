@@ -40,6 +40,7 @@
 #include "sockopt.h"
 #include "checksum.h"
 #include "md5.h"
+#include "vty.h"
 #include "keychain.h"
 
 #include "eigrpd/eigrp_structs.h"
@@ -55,7 +56,7 @@
 #include "eigrpd/eigrp_fsm.h"
 
 void
-eigrp_send_reply (struct eigrp_neighbor *nbr, struct eigrp_prefix_entry *te)
+eigrp_send_reply (struct eigrp_neighbor *nbr, struct eigrp_prefix_entry *pe)
 {
   struct eigrp_packet *ep;
   u_int16_t length = EIGRP_HEADER_LEN;

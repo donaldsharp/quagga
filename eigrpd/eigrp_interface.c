@@ -38,6 +38,7 @@
 #include "stream.h"
 #include "log.h"
 #include "keychain.h"
+#include "vrf.h"
 
 #include "eigrpd/eigrp_structs.h"
 #include "eigrpd/eigrpd.h"
@@ -332,7 +333,7 @@ int
 eigrp_if_down (struct eigrp_interface *ei)
 {
 
-  struct listnode *node, *nnode, *node2, *nnode2;
+  struct listnode *node, *nnode;
   struct eigrp_neighbor *nbr;
 
   if (ei == NULL)
