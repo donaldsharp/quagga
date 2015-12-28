@@ -283,6 +283,7 @@ main (int argc, char **argv)
   cmd_init (1);
   vty_init (master);
   memory_init ();
+  vrf_init ();
 
   /*EIGRPd init*/
   eigrp_if_init ();
