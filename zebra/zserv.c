@@ -1342,6 +1342,8 @@ zebra_client_create (int sock)
   zebra_event (ZEBRA_READ, sock, client);
 }
 
+static int count = 0;
+
 /* Handler of zebra service request. */
 static int
 zebra_client_read (struct thread *thread)
@@ -1521,6 +1523,16 @@ zebra_client_read (struct thread *thread)
       return -1;
     }
 
+  stream_set_getp(client->ibuf, 0);
+  char path[100];
+  FILE *fp;
+
+  zlog_debug ("WWriting data");
+  sprintf (path, "/tmp/read_%s.%d", program_invocation_name, count);
+  fp = fopen (path, "wb"); 
+  fwrite (client->ibuf->data, length + ZEBRA_HEADER_SIZE, 1, fp);
+  fclose (fp);
+  count++;
   stream_reset (client->ibuf);
   zebra_event (ZEBRA_READ, sock, client);
   return 0;

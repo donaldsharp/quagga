@@ -884,7 +884,7 @@ zebra_interface_address_read (int type, struct stream *s, vrf_id_t vrf_id)
   return ifc;
 }
 
-
+static int count = 0;
 /* Zebra client message read function. */
 static int
 zclient_read (struct thread *thread)
@@ -1034,7 +1034,16 @@ zclient_read (struct thread *thread)
   if (zclient->sock < 0)
     /* Connection was closed during packet processing. */
     return -1;
+  stream_set_getp(zclient->ibuf, 0);
+  char path[100];
+  FILE *fp;
 
+  zlog_debug ("WWriting data");
+  sprintf (path, "/tmp/read_%s.%d", program_invocation_name, count);
+  fp = fopen (path, "wb"); 
+  fwrite (zclient->ibuf->data, length + ZEBRA_HEADER_SIZE, 1, fp);
+  fclose (fp);
+  count++;
   /* Register read thread. */
   stream_reset(zclient->ibuf);
   zclient_event (ZCLIENT_READ, zclient);
