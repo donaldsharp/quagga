@@ -1295,7 +1295,7 @@ addattr_l (struct nlmsghdr *n, size_t maxlen, int type, void *data, int alen)
 }
 
 int
-rta_addattr_l (struct rtattr *rta, int maxlen, int type, void *data, int alen)
+rta_addattr_l (struct rtattr *rta, uint maxlen, int type, void *data, int alen)
 {
   int len;
   struct rtattr *subrta;
