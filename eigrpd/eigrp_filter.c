@@ -56,8 +56,8 @@
 #include "keychain.h"
 #include "privs.h"
 
-#include "eigrpd/eigrpd.h"
 #include "eigrpd/eigrp_structs.h"
+#include "eigrpd/eigrpd.h"
 #include "eigrpd/eigrp_const.h"
 #include "eigrpd/eigrp_filter.h"
 

@@ -31,6 +31,7 @@
 #include "thread.h"
 #include "memory.h"
 #include "linklist.h"
+#include "vty.h"
 #include "keychain.h"
 #include "prefix.h"
 #include "if.h"
@@ -94,7 +95,7 @@ eigrp_make_md5_digest (struct eigrp_interface *ei, struct stream *s, u_char flag
 
   unsigned char digest[EIGRP_AUTH_TYPE_MD5_LEN];
   MD5_CTX ctx;
-  void *ibuf;
+  u_char *ibuf;
   size_t backup_get, backup_end;
   struct TLV_MD5_Authentication_Type *auth_TLV;
 
@@ -160,9 +161,9 @@ eigrp_check_md5_digest (struct stream *s, struct TLV_MD5_Authentication_Type *au
 {
   MD5_CTX ctx;
   unsigned char digest[EIGRP_AUTH_TYPE_MD5_LEN];
-  struct key *key;
+  struct key *key = NULL;
   struct keychain *keychain;
-  void *ibuf;
+  u_char *ibuf;
   size_t backup_end;
   struct TLV_MD5_Authentication_Type *auth_TLV;
   struct eigrp_header *eigrph;
@@ -242,10 +243,9 @@ eigrp_check_md5_digest (struct stream *s, struct TLV_MD5_Authentication_Type *au
 int
 eigrp_make_sha256_digest (struct eigrp_interface *ei, struct stream *s, u_char flags)
 {
-    struct key *key;
+    struct key *key = NULL;
     struct keychain *keychain;
     char *source_ip;
-    int saved_len;
 
     unsigned char digest[EIGRP_AUTH_TYPE_SHA256_LEN];
     unsigned char buffer[1 + PLAINTEXT_LENGTH + 45 + 1] = { 0 };

@@ -188,7 +188,7 @@ eigrp_hello_authentication_decode(struct stream *s, struct eigrp_tlv_hdr_type *t
   md5 = (struct TLV_MD5_Authentication_Type *) tlv_header;
 
   if(md5->auth_type == EIGRP_AUTH_TYPE_MD5)
-    return eigrp_check_md5_digest(s, tlv_header, nbr, EIGRP_AUTH_BASIC_HELLO_FLAG);
+    return eigrp_check_md5_digest(s, md5, nbr, EIGRP_AUTH_BASIC_HELLO_FLAG);
   else if (md5->auth_type == EIGRP_AUTH_TYPE_SHA256)
     return eigrp_check_sha256_digest(s, (struct TLV_SHA256_Authentication_Type *) tlv_header, nbr, EIGRP_AUTH_BASIC_HELLO_FLAG);
 
@@ -308,10 +308,10 @@ eigrp_hello_receive (struct eigrp *eigrp, struct ip *iph, struct eigrp_header *e
 	    break;
 	  case EIGRP_TLV_AUTH:
 	    {
-//              if(eigrp_hello_authentication_decode(s,tlv_header,nbr) == 0)
-//                return;
-//              else
-//                break;
+              if(eigrp_hello_authentication_decode(s,tlv_header,nbr) == 0)
+                return;
+              else
+                break;
               break;
 	    }
 	  case EIGRP_TLV_SEQ:

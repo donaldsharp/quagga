@@ -109,7 +109,7 @@ config_write_debug (struct vty *vty)
 //  }
 
   /* debug eigrp packet */
-  for (i = 0; i < 11; i++)
+  for (i = 0; i < 10; i++)
   {
       if (conf_debug_eigrp_packet[i] == 0 && term_debug_eigrp_packet[i] == 0 )
     	  continue;
@@ -526,9 +526,7 @@ DEFUN (debug_eigrp_transmit,
        "packet received\n"
        "all packets\n")
 {
-  int type = 0;
   int flag = 0;
-  int i;
 
   /* send or recv. */
   if (strncmp (argv[0], "s", 1) == 0)
@@ -579,9 +577,7 @@ DEFUN (no_debug_eigrp_transmit,
        "packet received\n"
        "all packets\n")
 {
-  int type = 0;
   int flag = 0;
-  int i;
 
   /* send or recv. */
   if (strncmp (argv[0], "s", 1) == 0)

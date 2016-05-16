@@ -121,14 +121,10 @@ eigrp_zebra_read_ipv4 (int command, struct zclient *zclient,
 {
   struct stream *s;
   struct zapi_ipv4 api;
-  unsigned long ifindex = 0;
-  struct in_addr nexthop;
   struct prefix_ipv4 p;
-  struct TLV_IPv4_External_type *external_tlv;
   struct eigrp *eigrp;
 
   s = zclient->ibuf;
-  nexthop.s_addr = 0;
 
   /* Type, flags, message. */
   api.type = stream_getc (s);
@@ -148,13 +144,13 @@ eigrp_zebra_read_ipv4 (int command, struct zclient *zclient,
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_NEXTHOP))
     {
       api.nexthop_num = stream_getc (s);
-      nexthop.s_addr = stream_get_ipv4 (s);
+      stream_get_ipv4 (s);
     }
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_IFINDEX))
     {
       api.ifindex_num = stream_getc (s);
       /* XXX assert(api.ifindex_num == 1); */
-      ifindex = stream_getl (s);
+      stream_getl (s);  /* ifindex, unused */
     }
   if (CHECK_FLAG (api.message, ZAPI_MESSAGE_DISTANCE))
     api.distance = stream_getc (s);
@@ -517,7 +513,7 @@ eigrp_zebra_route_delete (struct prefix_ipv4 *p, struct eigrp_neighbor_entry *te
     }
 }
 
-int
+vrf_bitmap_t
 eigrp_is_type_redistributed (int type)
 {
   return (DEFAULT_ROUTE_TYPE (type)) ?

@@ -383,7 +383,6 @@ int eigrp_fsm_event_q_fcn(struct eigrp_fsm_action_message *msg) {
 int eigrp_fsm_event_keep_state(struct eigrp_fsm_action_message *msg) {
 
 	struct eigrp_prefix_entry *prefix = msg->prefix;
-	struct eigrp_neighbor_entry *entry = msg->entry;
 
 	if (prefix->state == EIGRP_FSM_STATE_PASSIVE) {
 		if (!eigrp_metrics_is_same(&prefix->reported_metric,
@@ -395,7 +394,7 @@ int eigrp_fsm_event_keep_state(struct eigrp_fsm_action_message *msg) {
 			prefix->reported_metric =
 					((struct eigrp_neighbor_entry *) prefix->entries->head->data)->total_metric;
 			if (msg->packet_type == EIGRP_OPC_QUERY)
-				eigrp_send_reply(msg->adv_router, msg->entry);
+				eigrp_send_reply(msg->adv_router, msg->prefix);
 			prefix->req_action |= EIGRP_FSM_NEED_UPDATE;
 			listnode_add((eigrp_lookup())->topology_changes_internalIPV4,prefix);
 		}
