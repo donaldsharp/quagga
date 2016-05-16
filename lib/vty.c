@@ -707,6 +707,7 @@ vty_end_config (struct vty *vty)
     case BGP_IPV4M_NODE:
     case BGP_IPV6_NODE:
     case BGP_IPV6M_NODE:
+    case EIGRP_NODE:
     case RMAP_NODE:
     case OSPF_NODE:
     case OSPF6_NODE:
@@ -1113,6 +1114,7 @@ vty_stop_input (struct vty *vty)
     case BABEL_NODE:
     case BGP_NODE:
     case RMAP_NODE:
+    case EIGRP_NODE:
     case OSPF_NODE:
     case OSPF6_NODE:
     case ISIS_NODE:

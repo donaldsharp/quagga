@@ -141,7 +141,7 @@ DEFUN (no_router_eigrp,
        "Routing process\n"
        "EIGRP configuration\n")
 {
-  vty->node = EIGRP_NODE;
+  vty->node = CONFIG_NODE;
 
   /*TODO: */
 

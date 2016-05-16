@@ -966,7 +966,7 @@ DEFUNSH (VTYSH_OSPFD,
 DEFUNSH (VTYSH_EIGRPD,
          router_eigrp,
          router_eigrp_cmd,
-         "router eigrp",
+         "router eigrp <1-65535>",
          "Enable a routing process\n"
          "Start EIGRP configuration\n")
 {
@@ -2421,6 +2421,7 @@ vtysh_init_vty (void)
   install_element (ENABLE_NODE, &vtysh_end_all_cmd);
   install_element (RIP_NODE, &vtysh_end_all_cmd);
   install_element (RIPNG_NODE, &vtysh_end_all_cmd);
+  install_element (EIGRP_NODE, &vtysh_end_all_cmd);
   install_element (OSPF_NODE, &vtysh_end_all_cmd);
   install_element (OSPF6_NODE, &vtysh_end_all_cmd);
   install_element (BABEL_NODE, &vtysh_end_all_cmd);
@@ -2442,6 +2443,7 @@ vtysh_init_vty (void)
   install_element (INTERFACE_NODE, &vtysh_exit_interface_cmd);
   install_element (INTERFACE_NODE, &vtysh_quit_interface_cmd);
   install_element (CONFIG_NODE, &router_rip_cmd);
+  install_element (CONFIG_NODE, &router_eigrp_cmd);
 #ifdef HAVE_IPV6
   install_element (CONFIG_NODE, &router_ripng_cmd);
 #endif
