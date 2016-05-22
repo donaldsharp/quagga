@@ -65,6 +65,13 @@ config_write_network (struct vty *vty, struct eigrp *eigrp)
         vty_out (vty, " network %s/%d %s",
                  inet_ntoa (rn->p.u.prefix4), rn->p.prefixlen, VTY_NEWLINE);
       }
+
+  if (eigrp->max_paths != EIGRP_MAX_PATHS_DEFAULT)
+    vty_out (vty, " maximum-paths %d%s", eigrp->max_paths, VTY_NEWLINE);
+
+  if (eigrp->variance != EIGRP_VARIANCE_DEFAULT)
+    vty_out (vty, " variance %d%s", eigrp->variance, VTY_NEWLINE);
+
   /*Separate EIGRP configuration from the rest of the config*/
   vty_out (vty, "!%s", VTY_NEWLINE);
 
