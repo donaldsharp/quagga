@@ -1,12 +1,16 @@
 /*
  * EIGRP Interface Functions.
- * Copyright (C) 2013-2014
+ * Copyright (C) 2013-2015
  * Authors:
  *   Donnie Savage
  *   Jan Janovic
  *   Matej Perina
  *   Peter Orsag
  *   Peter Paluch
+ *   Frantisek Gazo
+ *   Tomas Hvorkovy
+ *   Martin Kontsek
+ *   Lukas Koribsky
  *
  * This file is part of GNU Zebra.
  *
@@ -74,6 +78,7 @@ struct eigrp_interface *
 eigrp_if_new (struct eigrp *eigrp, struct interface *ifp, struct prefix *p)
 {
   struct eigrp_interface *ei;
+  int i;
 
   if ((ei = eigrp_if_table_lookup (ifp, p)) == NULL)
     {
@@ -97,7 +102,32 @@ eigrp_if_new (struct eigrp *eigrp, struct interface *ifp, struct prefix *p)
 
   ei->crypt_seqnum = time (NULL);
 
+  /* Initialize lists */
+  for (i = 0; i < EIGRP_FILTER_MAX; i++)
+    {
+	  ei->list[i] = NULL;
+	  ei->prefix[i] = NULL;
+	  ei->routemap[i] = NULL;
+    }
+
+  /* Initialize Hub-and-Spoke role */
+  IF_DEF_PARAMS(ifp)->hs_role = EIGRP_HSROLE_DEFAULT;
+
   return ei;
+}
+
+/* lookup ei for specified prefix/ifp */
+struct eigrp_interface *
+eigrp_if_lookup (struct interface *ifp, struct eigrp *e)
+{
+  struct listnode *node, *nnode;
+  struct eigrp_interface *ei;
+
+  for (ALL_LIST_ELEMENTS (e->eiflist, node, nnode, ei))
+    if(strcmp(ei->ifp->name,ifp->name) == 0)
+      return ei;
+
+  return NULL;
 }
 
 /* lookup ei for specified prefix/ifp */
@@ -332,7 +362,6 @@ eigrp_if_up (struct eigrp_interface *ei)
 int
 eigrp_if_down (struct eigrp_interface *ei)
 {
-
   struct listnode *node, *nnode;
   struct eigrp_neighbor *nbr;
 

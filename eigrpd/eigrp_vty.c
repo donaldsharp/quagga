@@ -1,12 +1,16 @@
 /*
  * EIGRP VTY Interface.
- * Copyright (C) 2013-2014
+ * Copyright (C) 2013-2015
  * Authors:
  *   Donnie Savage
  *   Jan Janovic
  *   Matej Perina
  *   Peter Orsag
  *   Peter Paluch
+ *   Frantisek Gazo
+ *   Tomas Hvorkovy
+ *   Martin Kontsek
+ *   Lukas Koribsky
  *
  * This file is part of GNU Zebra.
  *
@@ -39,6 +43,7 @@
 #include "zclient.h"
 #include "keychain.h"
 #include "linklist.h"
+#include "zebra/interface.h"
 
 #include "eigrpd/eigrp_structs.h"
 #include "eigrpd/eigrpd.h"
@@ -128,6 +133,57 @@ eigrp_write_interface (struct vty *vty)
   return write;
 }
 
+/**
+ * Writes distribute lists to config
+ */
+static int
+config_write_eigrp_distribute (struct vty *vty, struct eigrp *eigrp)
+{
+  int write=0;
+
+  /* Distribute configuration. */
+  write += config_write_distribute (vty);
+
+  return write;
+}
+
+/**
+ * Writes 'router eigrp' section to config
+ */
+static int
+config_write_eigrp_router (struct vty *vty, struct eigrp *eigrp)
+{
+  int write=0;
+
+  /* `router eigrp' print. */
+  vty_out (vty, "router eigrp %d%s", eigrp->AS, VTY_NEWLINE);
+
+  write++;
+
+  if (!eigrp->networks)
+    return write;
+
+  /* Router ID print. */
+  if (eigrp->router_id_static != 0)
+    {
+      struct in_addr router_id_static;
+      router_id_static.s_addr = htonl(eigrp->router_id_static);
+	  vty_out (vty, " eigrp router-id %s%s",
+			 inet_ntoa (router_id_static), VTY_NEWLINE);
+    }
+
+  /* Network area print. */
+  config_write_network (vty, eigrp);
+
+  /* Distribute-list and default-information print. */
+  config_write_eigrp_distribute (vty, eigrp);
+
+  /*Separate EIGRP configuration from the rest of the config*/
+  vty_out (vty, "!%s", VTY_NEWLINE);
+
+  return write;
+}
+
 DEFUN (router_eigrp,
        router_eigrp_cmd,
        "router eigrp <1-65535>",
@@ -162,6 +218,7 @@ DEFUN (eigrp_router_id,
        "Router ID for this EIGRP process\n"
        "EIGRP Router-ID in IP address format\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -175,6 +232,7 @@ DEFUN (no_eigrp_router_id,
        "Router ID for this EIGRP process\n"
        "EIGRP Router-ID in IP address format\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -186,6 +244,7 @@ DEFUN (eigrp_passive_interface,
        "Suppress routing updates on an interface\n"
        INT_TYPES_DESC)
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -198,6 +257,7 @@ DEFUN (no_eigrp_passive_interface,
        "Suppress routing updates on an interface\n"
        INT_TYPES_DESC)
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -211,6 +271,7 @@ DEFUN (eigrp_timers_active,
        "Active state time limit in minutes\n"
        "Disable time limit for active state\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -225,6 +286,7 @@ DEFUN (no_eigrp_timers_active,
        "Active state time limit in minutes\n"
        "Disable time limit for active state\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -242,6 +304,7 @@ DEFUN (eigrp_metric_weights,
        "K4\n"
        "K5\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -258,6 +321,7 @@ DEFUN (no_eigrp_metric_weights,
        "K4\n"
        "K5\n")
 {
+  struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -317,6 +381,9 @@ DEFUN (eigrp_neighbor,
        "Neighbor address\n"
        INT_TYPES_DESC)
 {
+  struct eigrp *eigrp = vty->index;
+  struct prefix_ipv4 p;
+
   return CMD_SUCCESS;
 }
 
@@ -328,6 +395,9 @@ DEFUN (no_eigrp_neighbor,
        "Neighbor address\n"
        INT_TYPES_DESC)
 {
+  struct eigrp *eigrp = vty->index;
+  struct prefix_ipv4 p;
+
   return CMD_SUCCESS;
 }
 
@@ -763,6 +833,7 @@ DEFUN (eigrp_ip_summary_address,
 {
   u_int32_t AS;
   struct eigrp *eigrp;
+  struct interface *ifp;
 
   eigrp = eigrp_lookup ();
   if (eigrp == NULL)
@@ -779,6 +850,8 @@ DEFUN (eigrp_ip_summary_address,
       vty_out (vty, "AS value is invalid%s", VTY_NEWLINE);
       return CMD_WARNING;
     }
+
+  ifp = vty->index;
 
   /*TODO: */
 
@@ -797,6 +870,7 @@ DEFUN (no_eigrp_ip_summary_address,
 {
   u_int32_t AS;
   struct eigrp *eigrp;
+  struct interface *ifp;
 
   eigrp = eigrp_lookup ();
   if (eigrp == NULL)
@@ -813,6 +887,8 @@ DEFUN (no_eigrp_ip_summary_address,
       vty_out (vty, "AS value is invalid%s", VTY_NEWLINE);
       return CMD_WARNING;
     }
+
+  ifp = vty->index;
 
   /*TODO: */
 
@@ -1166,7 +1242,92 @@ DEFUN (no_eigrp_maximum_paths,
     return CMD_SUCCESS;
 }
 
+DEFUN (ip_eigrp_network,
+	   ip_eigrp_network_cmd,
+	   "ip eigrp network (point-to-multipoint)",
+	   IP_STR
+	   EIGRP_STR
+	   "Network type\n"
+       "Specify EIGRP point-to-multipoint network\n")
+{
+  struct eigrp_interface *ei;
+  struct interface *ifp;
 
+  /* get configured interface */
+  ifp = (struct interface *) vty->index;
+  assert (ifp);
+  ei = eigrp_if_lookup(ifp, eigrp_lookup());
+  assert (ei);
+  /* set selected network type */
+  ei->type = EIGRP_IFTYPE_POINTOMULTIPOINT;
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_ip_eigrp_network,
+	   no_ip_eigrp_network_cmd,
+	   "no ip eigrp network (point-to-multipoint)",
+	   NO_STR
+	   IP_STR
+	   EIGRP_STR
+	   "Network type\n"
+       "Specify EIGRP point-to-multipoint network\n")
+{
+  struct eigrp_interface *ei;
+  struct interface *ifp;
+
+  /* get configured interface */
+  ifp = (struct interface *) vty->index;
+  assert (ifp);
+  ei = eigrp_if_lookup(ifp, eigrp_lookup());
+  assert (ei);
+  /* reset default type */
+  ei->type = eigrp_default_iftype(ifp);
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (ip_eigrp_hub_and_spoke_role,
+	   ip_eigrp_hub_and_spoke_role_cmd,
+	   "ip eigrp hub-and-spoke role (hub|spoke)",
+	   IP_STR
+	   EIGRP_STR
+	   "Hub and Spoke\n"
+	   "Role in Hub and Spoke topology\n")
+{
+  struct interface *ifp;
+
+  /* get configured interface */
+  ifp = (struct interface *) vty->index;
+  assert (ifp);
+  /* set selected Hub-and-Spoke role */
+  if (strncmp (argv[0], "h", 1) == 0)
+	IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_HUB;
+  else if (strncmp (argv[0], "s", 1) == 0)
+	IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_SPOKE;
+
+  return CMD_SUCCESS;
+}
+
+DEFUN (no_ip_eigrp_hub_and_spoke_role,
+	   no_ip_eigrp_hub_and_spoke_role_cmd,
+	   "no ip eigrp hub-and-spoke role",
+	   NO_STR
+	   IP_STR
+	   EIGRP_STR
+	   "Hub and Spoke\n"
+	   "Role in Hub and Spoke topology\n")
+{
+  struct interface *ifp;
+
+  /* get configured interface */
+  ifp = (struct interface *) vty->index;
+  assert (ifp);
+  /* reset Hub-and-Spoke role */
+  IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_DEFAULT;
+
+  return CMD_SUCCESS;
+}
 
 static struct cmd_node eigrp_node =
 {
@@ -1186,25 +1347,8 @@ eigrp_config_write (struct vty *vty)
   eigrp = eigrp_lookup ();
   if (eigrp != NULL)
     {
-      /* `router eigrp' print. */
-      vty_out (vty, "router eigrp %d%s", eigrp->AS, VTY_NEWLINE);
-
-      write++;
-
-      if (!eigrp->networks)
-        return write;
-
-      /* Router ID print. */
-      if (eigrp->router_id_static != 0)
-      {
-	struct in_addr router_id_static;
-	router_id_static.s_addr = htonl(eigrp->router_id_static);
-        vty_out (vty, " eigrp router-id %s%s",
-                 inet_ntoa (router_id_static), VTY_NEWLINE);
-      }
-
-      /* Network area print. */
-      config_write_network (vty, eigrp);
+	  /* Writes 'router eigrp' section to config */
+	  config_write_eigrp_router (vty, eigrp);
 
       /* Interface config print */
       config_write_interfaces (vty, eigrp);
@@ -1290,10 +1434,15 @@ eigrp_vty_if_init (void)
   install_element (INTERFACE_NODE, &eigrp_authentication_keychain_cmd);
   install_element (INTERFACE_NODE, &no_eigrp_authentication_keychain_cmd);
 
-  /*EIGRP Summarization commands*/
+  /* EIGRP Summarization commands */
   install_element (INTERFACE_NODE, &eigrp_ip_summary_address_cmd);
   install_element (INTERFACE_NODE, &no_eigrp_ip_summary_address_cmd);
 
+  /* EIGRP Hub-and-Spoke network commands */
+  install_element (INTERFACE_NODE, &ip_eigrp_network_cmd);
+  install_element (INTERFACE_NODE, &no_ip_eigrp_network_cmd);
+  install_element (INTERFACE_NODE, &ip_eigrp_hub_and_spoke_role_cmd);
+  install_element (INTERFACE_NODE, &no_ip_eigrp_hub_and_spoke_role_cmd);
 
 }
 

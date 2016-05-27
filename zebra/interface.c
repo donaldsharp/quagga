@@ -1891,6 +1891,7 @@ zebra_if_init (void)
   install_element (ENABLE_NODE, &show_interface_desc_cmd);
   install_element (ENABLE_NODE, &show_interface_desc_vrf_cmd);
   install_element (ENABLE_NODE, &show_interface_desc_vrf_all_cmd);
+  install_element (ENABLE_NODE, &show_ip_interface_brief_cmd);
   install_element (CONFIG_NODE, &zebra_interface_cmd);
   install_element (CONFIG_NODE, &zebra_interface_vrf_cmd);
   install_element (CONFIG_NODE, &no_interface_cmd);

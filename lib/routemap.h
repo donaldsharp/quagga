@@ -49,6 +49,7 @@ typedef enum
   RMAP_BGP,
   RMAP_ZEBRA,
   RMAP_ISIS,
+  RMAP_EIGRP
 } route_map_object_t;
 
 typedef enum

@@ -106,8 +106,27 @@ eigrp_nbr_get (struct eigrp_interface *ei, struct eigrp_header *eigrph,
         }
     }
 
+  /* DO not create neighbor, if not found
   nbr = eigrp_nbr_add (ei, eigrph, iph);
-  listnode_add (ei->nbrs, nbr);
+  listnode_add (ei->nbrs, nbr);*/
+
+  return NULL;
+}
+
+struct eigrp_neighbor *
+eigrp_nbr_get_or_create (struct eigrp_interface *ei, struct eigrp_header *eigrph,
+              struct ip *iph)
+{
+  struct eigrp_neighbor *nbr;
+
+  nbr = eigrp_nbr_get(ei, eigrph, iph);
+
+  if (nbr == NULL)
+    {
+	  /* create neighbor, if not found */
+	  nbr = eigrp_nbr_add (ei, eigrph, iph);
+	  listnode_add (ei->nbrs, nbr);
+    }
 
   return nbr;
 }
@@ -138,6 +157,7 @@ eigrp_nbr_delete (struct eigrp_neighbor *nbr)
   eigrp_nbr_state_set(nbr, EIGRP_NEIGHBOR_DOWN);
   eigrp_topology_neighbor_down(nbr->ei->eigrp, nbr);
 
+  /* Cancel all events. *//* Thread lookup cost would be negligible. */
   thread_cancel_event (master, nbr);
   eigrp_fifo_free (nbr->multicast_queue);
   eigrp_fifo_free (nbr->retrans_queue);

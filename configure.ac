@@ -1589,7 +1589,7 @@ Quagga configuration
 quagga version          : ${PACKAGE_VERSION}
 host operating system   : ${host_os}
 source code location    : ${srcdir}
-compiler                : ${CC}
+compiler                : ${CC}AC_SUBST(EIGRPD)
 compiler flags          : ${CFLAGS}
 make                    : ${MAKE-make}
 linker flags            : ${LDFLAGS} ${LIBS} ${LIBCAP} ${LIBREADLINE} ${LIBM}
