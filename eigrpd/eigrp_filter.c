@@ -52,10 +52,11 @@
 #include "keychain.h"
 #include "privs.h"
 
-#include "eigrpd/eigrpd.h"
 #include "eigrpd/eigrp_structs.h"
+#include "eigrpd/eigrpd.h"
 #include "eigrpd/eigrp_const.h"
 #include "eigrpd/eigrp_filter.h"
+#include "eigrpd/eigrp_packet.h"
 
 /*
  * Distribute-list update functions.
@@ -64,23 +65,23 @@ void
 eigrp_distribute_update (struct distribute *dist)
 {
   struct interface *ifp;
-  struct eigrp_interface *ei;
+  struct eigrp_interface *ei = NULL;
   struct access_list *alist;
   struct prefix_list *plist;
+  struct route_map *routemap;
   struct eigrp *e;
 
-  zlog_info("<DEBUG ACL start");
   /* if no interface address is present, set list to eigrp process struct */
   e = eigrp_lookup();
 
   /* Check if distribute-list was set for process or interface */
   if (! dist->ifname)
     {
-	  /* distribute list IN for whole process */
+	  /* access list IN for whole process */
 	  if (dist->list[DISTRIBUTE_IN])
 	    {
-	  	  zlog_info("<DEBUG ACL ALL in");
 	      alist = access_list_lookup (AFI_IP, dist->list[DISTRIBUTE_IN]);
+	      zlog_info("<DEBUG DISTRIBUTE ACL IN FOUND: %s",alist->name);
 	      if (alist)
 	        e->list[EIGRP_FILTER_IN] = alist;
 	      else
@@ -91,10 +92,10 @@ eigrp_distribute_update (struct distribute *dist)
 	      e->list[EIGRP_FILTER_IN] = NULL;
 	    }
 
-	  /* distribute list OUT for whole process */
+	  /* access list OUT for whole process */
 	  if (dist->list[DISTRIBUTE_OUT])
 		{
-		  zlog_info("<DEBUG ACL ALL out");
+		  zlog_info("<DEBUG DISTRIBUTE ACL OUT FOUND: %s",dist->list[DISTRIBUTE_OUT]);
 		  alist = access_list_lookup (AFI_IP, dist->list[DISTRIBUTE_OUT]);
 		  if (alist)
 			e->list[EIGRP_FILTER_OUT] = alist;
@@ -109,6 +110,7 @@ eigrp_distribute_update (struct distribute *dist)
 	  /* PREFIX_LIST IN for process */
 	  if (dist->prefix[DISTRIBUTE_IN])
 		 {
+		   zlog_info("<DEBUG DISTRIBUTE PREFIX IN FOUND: %s",dist->prefix[DISTRIBUTE_IN]);
 		   plist = prefix_list_lookup (AFI_IP, dist->prefix[DISTRIBUTE_IN]);
 		   if (plist)
 			{
@@ -122,6 +124,7 @@ eigrp_distribute_update (struct distribute *dist)
 	   /* PREFIX_LIST OUT for process */
 	   if (dist->prefix[DISTRIBUTE_OUT])
 		  {
+		    zlog_info("<DEBUG DISTRIBUTE PREFIX OUT FOUND: %s",dist->prefix[DISTRIBUTE_OUT]);
 			plist = prefix_list_lookup (AFI_IP, dist->prefix[DISTRIBUTE_OUT]);
 			if (plist)
 			{
@@ -134,11 +137,48 @@ eigrp_distribute_update (struct distribute *dist)
 		else
 		  e->prefix[EIGRP_FILTER_OUT] = NULL;
 
+	   /* route-map IN for whole process */
+	   if (dist->route[DISTRIBUTE_IN])
+		 {
+		  routemap = route_map_lookup_by_name (dist->route[DISTRIBUTE_IN]);
+		  if (routemap)
+			e->routemap[EIGRP_FILTER_IN] = routemap;
+		  else
+			e->routemap[EIGRP_FILTER_IN] = NULL;
+		 }
+	   else
+		{
+		  e->routemap[EIGRP_FILTER_IN] = NULL;
+		}
+
+	   /* route-map OUT for whole process */
+	   if (dist->route[DISTRIBUTE_OUT])
+		{
+		  routemap = route_map_lookup_by_name (dist->route[DISTRIBUTE_OUT]);
+		  if (routemap)
+			e->routemap[EIGRP_FILTER_OUT] = routemap;
+		  else
+			e->routemap[EIGRP_FILTER_OUT] = NULL;
+		}
+	   else
+		{
+		  e->routemap[EIGRP_FILTER_OUT] = NULL;
+		}
+
+	   //TODO: check Graceful restart after 10sec
+
+	   /* check if there is already GR scheduled */
+	   if(e->t_distribute != NULL)
+	   {
+		   /* if is, cancel schedule */
+		   thread_cancel(e->t_distribute);
+	   }
+	   /* schedule Graceful restart for whole process in 10sec */
+	   e->t_distribute = thread_add_timer(master, eigrp_distribute_timer_process, e,(10));
+
 	  return;
     }
 
-  zlog_info("<DEBUG ACL 1");
-  zlog_info("DEBUG int name: %d",dist->ifname);
   ifp = if_lookup_by_name (dist->ifname);
   if (ifp == NULL)
     return;
@@ -149,13 +189,10 @@ eigrp_distribute_update (struct distribute *dist)
   ei = info->eigrp_interface;*/
   struct listnode *node, *nnode;
   struct eigrp_interface *ei2;
-  zlog_info("Looking for eigrp interface %s",ifp->name);
   /* Find proper interface */
   for (ALL_LIST_ELEMENTS (e->eiflist, node, nnode, ei2))
   {
-	  zlog_info("Checking eigrp interface %s",ei2->ifp->name);
 	  if(strcmp(ei2->ifp->name,ifp->name) == 0){
-		  zlog_info("Found eigrp interface %s",ifp->name);
 		  ei = ei2;
 		  break;
 	  }
@@ -173,7 +210,6 @@ eigrp_distribute_update (struct distribute *dist)
       alist = access_list_lookup (AFI_IP, dist->list[DISTRIBUTE_IN]);
       if (alist){
         ei->list[EIGRP_FILTER_IN] = alist;
-        zlog_info("Setting interface acl");
       }
       else
 	    ei->list[EIGRP_FILTER_IN] = NULL;
@@ -181,20 +217,17 @@ eigrp_distribute_update (struct distribute *dist)
   else
   {
     ei->list[EIGRP_FILTER_IN] = NULL;
-	  zlog_info("<DEBUG ACL in else");
   }
 
   /* Access-list for interface in */
   if (dist->list[DISTRIBUTE_OUT])
     {
-	  zlog_info("<DEBUG ACL out");
       alist = access_list_lookup (AFI_IP, dist->list[DISTRIBUTE_OUT]);
       if (alist)
     	ei->list[EIGRP_FILTER_OUT] = alist;
       else
     	ei->list[EIGRP_FILTER_OUT] = NULL;
 
-	  zlog_info("<DEBUG ACL is null: %d", ei->list[EIGRP_FILTER_OUT] == NULL);
     }
   else
   {
@@ -202,7 +235,6 @@ eigrp_distribute_update (struct distribute *dist)
 	  zlog_info("<DEBUG ACL out else");
   }
 
-  zlog_info("<DEBUG PREFIX INTERFACE");
   /* Prefix-list for interface in */
   if (dist->prefix[DISTRIBUTE_IN])
     {
@@ -227,7 +259,46 @@ eigrp_distribute_update (struct distribute *dist)
   else
     ei->prefix[EIGRP_FILTER_OUT] = NULL;
 
-  zlog_info("<DEBUG ACL end");
+  /* route-map IN for whole process */
+  if (dist->route[DISTRIBUTE_IN])
+	{
+	  zlog_info("<DEBUG ACL ALL in");
+	  routemap = route_map_lookup_by_name (dist->route[DISTRIBUTE_IN]);
+	  if (routemap)
+		ei->routemap[EIGRP_FILTER_IN] = routemap;
+	  else
+		ei->routemap[EIGRP_FILTER_IN] = NULL;
+	 }
+  else
+	{
+	  ei->routemap[EIGRP_FILTER_IN] = NULL;
+	}
+
+  /* route-map OUT for whole process */
+  if (dist->route[DISTRIBUTE_OUT])
+	{
+	  routemap = route_map_lookup_by_name (dist->route[DISTRIBUTE_OUT]);
+	  if (routemap)
+		ei->routemap[EIGRP_FILTER_OUT] = routemap;
+	  else
+		ei->routemap[EIGRP_FILTER_OUT] = NULL;
+	}
+  else
+	{
+	  ei->routemap[EIGRP_FILTER_OUT] = NULL;
+	}
+
+  //TODO: check Graceful restart after 10sec
+
+  /* check if there is already GR scheduled */
+  if(ei->t_distribute != NULL)
+  {
+	  /* if is, cancel schedule */
+	  thread_cancel(ei->t_distribute);
+  }
+  /* schedule Graceful restart for interface in 10sec */
+  e->t_distribute = thread_add_timer(master, eigrp_distribute_timer_interface, ei,(10));
+
 }
 
 /*
@@ -265,3 +336,52 @@ eigrp_distribute_update_all_wrapper(struct access_list *notused)
         eigrp_distribute_update_all(NULL);
 }
 
+/*
+ * @fn eigrp_distribute_timer_process
+ *
+ * @param[in]	thread	current execution thread timer is associated with
+ *
+ * @return int	always returns 0
+ *
+ * @par
+ * Called when 10sec waiting time expire and
+ * executes Graceful restart for whole process
+ */
+int
+eigrp_distribute_timer_process (struct thread *thread)
+{
+	struct eigrp *eigrp;
+
+	eigrp = THREAD_ARG(thread);
+	eigrp->t_distribute = NULL;
+
+	/* execute GR for whole process */
+	eigrp_update_send_process_GR(eigrp, EIGRP_GR_FILTER, NULL);
+
+	return 0;
+}
+
+/*
+ * @fn eigrp_distribute_timer_interface
+ *
+ * @param[in]	thread	current execution thread timer is associated with
+ *
+ * @return int	always returns 0
+ *
+ * @par
+ * Called when 10sec waiting time expire and
+ * executes Graceful restart for interface
+ */
+int
+eigrp_distribute_timer_interface (struct thread *thread)
+{
+	struct eigrp_interface *ei;
+
+	ei = THREAD_ARG(thread);
+	ei->t_distribute = NULL;
+
+	/* execute GR for interface */
+	eigrp_update_send_interface_GR(ei, EIGRP_GR_FILTER, NULL);
+
+	return 0;
+}

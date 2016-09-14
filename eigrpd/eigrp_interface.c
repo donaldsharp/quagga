@@ -1,6 +1,6 @@
 /*
  * EIGRP Interface Functions.
- * Copyright (C) 2013-2015
+ * Copyright (C) 2013-2016
  * Authors:
  *   Donnie Savage
  *   Jan Janovic
@@ -110,24 +110,7 @@ eigrp_if_new (struct eigrp *eigrp, struct interface *ifp, struct prefix *p)
 	  ei->routemap[i] = NULL;
     }
 
-  /* Initialize Hub-and-Spoke role */
-  IF_DEF_PARAMS(ifp)->hs_role = EIGRP_HSROLE_DEFAULT;
-
   return ei;
-}
-
-/* lookup ei for specified prefix/ifp */
-struct eigrp_interface *
-eigrp_if_lookup (struct interface *ifp, struct eigrp *e)
-{
-  struct listnode *node, *nnode;
-  struct eigrp_interface *ei;
-
-  for (ALL_LIST_ELEMENTS (e->eiflist, node, nnode, ei))
-    if(strcmp(ei->ifp->name,ifp->name) == 0)
-      return ei;
-
-  return NULL;
 }
 
 /* lookup ei for specified prefix/ifp */
@@ -458,7 +441,7 @@ eigrp_if_free (struct eigrp_interface *ei, int source)
   if (source == INTERFACE_DOWN_BY_VTY)
     {
       THREAD_OFF (ei->t_hello);
-      eigrp_hello_send(ei,EIGRP_HELLO_GRACEFUL_SHUTDOWN);
+      eigrp_hello_send(ei,EIGRP_HELLO_GRACEFUL_SHUTDOWN, NULL);
     }
 
   eigrp_if_down (ei);
@@ -526,6 +509,36 @@ eigrp_if_lookup_by_local_addr (struct eigrp *eigrp, struct interface *ifp,
     }
 
   return NULL;
+}
+
+/**
+ * @fn eigrp_if_lookup_by_name
+ *
+ * @param[in]		eigrp		EIGRP process
+ * @param[in]		if_name 	Name of the interface
+ *
+ * @return struct eigrp_interface *
+ *
+ * @par
+ * Function is used for lookup interface by name.
+ */
+struct eigrp_interface *
+eigrp_if_lookup_by_name (struct eigrp *eigrp, const char *if_name)
+{
+	struct eigrp_interface *ei;
+	struct listnode *node;
+
+	/* iterate over all eigrp interfaces */
+	for (ALL_LIST_ELEMENTS_RO (eigrp->eiflist, node, ei))
+	{
+		/* compare int name with eigrp interface's name */
+		if(strcmp(ei->ifp->name, if_name) == 0)
+		{
+			return ei;
+		}
+	}
+
+	return NULL;
 }
 
 /* determine receiving interface by ifp and source address */

@@ -801,7 +801,7 @@ DEFUN (distribute_list_route,
     }
 
   /* Get interface name corresponding distribute list. */
-  zlog_info("Distribute list on interface:", argv[2]);
+  zlog_info("Distribute list on interface: %s", argv[2]);
   distribute_list_route_set (argv[2], type, argv[0]);
 
   return CMD_SUCCESS;

@@ -1,6 +1,6 @@
 /*
  * EIGRP Definition of Data Structures.
- * Copyright (C) 2013-2015
+ * Copyright (C) 2013-2016
  * Authors:
  *   Donnie Savage
  *   Jan Janovic
@@ -100,6 +100,7 @@ struct eigrp
   /*Threads*/
   struct thread *t_write;
   struct thread *t_read;
+  struct thread *t_distribute; /* timer for distribute list */
 
   struct route_table *networks; /* EIGRP config networks. */
 
@@ -166,6 +167,7 @@ struct eigrp_interface
 
   /* Threads. */
   struct thread *t_hello; /* timer */
+  struct thread *t_distribute; /* timer for distribute list */
 
   int on_write_q;
 
@@ -208,8 +210,6 @@ struct eigrp_if_params
 
   DECLARE_IF_PARAM (char *, auth_keychain );    /* Associated keychain with interface*/
   DECLARE_IF_PARAM (int, auth_type);         /* EIGRP authentication type */
-
-  DECLARE_IF_PARAM (u_char, hs_role); /* Type of Hub-and-Spoke role */
 };
 
 enum
@@ -226,6 +226,17 @@ struct eigrp_if_info
 };
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
+/* Determines if it is first or last packet
+ * when packet consists of multiple packet
+ * chunks because of many route TLV
+ * (all won't fit into one packet) */
+enum Packet_part_type
+{
+	EIGRP_PACKET_PART_NA,
+	EIGRP_PACKET_PART_FIRST,
+	EIGRP_PACKET_PART_LAST
+};
 
 /* Neighbor Data Structure */
 struct eigrp_neighbor
@@ -261,11 +272,19 @@ struct eigrp_neighbor
 
   /* Threads. */
   struct thread *t_holddown;
+  struct thread *t_nbr_send_gr; /* thread for sending multiple GR packet chunks */
 
   struct eigrp_fifo *retrans_queue;
   struct eigrp_fifo *multicast_queue;
 
   u_int32_t crypt_seqnum;           /* Cryptographic Sequence Number. */
+
+  /* prefixes not received from neighbor during Graceful restart */
+  struct list *nbr_gr_prefixes;
+  /* prefixes not yet send to neighbor during Graceful restart */
+  struct list *nbr_gr_prefixes_send;
+  /* if packet is first or last during Graceful restart */
+  enum Packet_part_type nbr_gr_packet_type;
 };
 
 //---------------------------------------------------------------------------------------------------------------------------------------------
@@ -432,6 +451,22 @@ struct TLV_IPv4_External_type
   unsigned char destination_part[4];
   struct in_addr destination;
 }__attribute__((packed));
+
+/* EIGRP Peer Termination TLV - used for hard restart */
+struct TLV_Peer_Termination_type
+{
+	u_int16_t 	type;
+	u_int16_t 	length;
+	u_char  	unknown;
+	u_int32_t   neighbor_ip;
+} __attribute__((packed));
+
+/* Who executed Graceful restart */
+enum GR_type
+{
+	EIGRP_GR_MANUAL,
+	EIGRP_GR_FILTER
+};
 
 //---------------------------------------------------------------------------------------------------------------------------------------------
 

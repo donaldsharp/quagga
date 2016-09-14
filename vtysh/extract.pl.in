@@ -178,7 +178,7 @@ foreach (@ARGV) {
     }
 }
 
-my $bad_cli_stomps = 89;
+my $bad_cli_stomps = 120;
 # Currently we have $bad_cli_stomps.  This was determined by
 # running this script and counting up the collisions from what
 # was returned.

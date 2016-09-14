@@ -241,29 +241,12 @@ eigrp_check_md5_digest (struct stream *s, struct TLV_MD5_Authentication_Type *au
   return 1;
 }
 
-static int
-strnzcpyn(char *dst, const char *src, int size)
-{
-        char *dptr;
-        if (!size) return 0;
-
-        dptr = dst;
-
-        while (--size)
-                if (!(*dptr++ = *src++)) return (dptr-dst)-1;
-        *dptr = 0;
-
-        return (dptr-dst)-1;
-}
-
 int
 eigrp_make_sha256_digest (struct eigrp_interface *ei, struct stream *s, u_char flags)
 {
     struct key *key = NULL;
     struct keychain *keychain;
     char *source_ip;
-    int saved_len;
-    char saved_key[PLAINTEXT_LENGTH + 1];
 
     unsigned char digest[EIGRP_AUTH_TYPE_SHA256_LEN];
     unsigned char buffer[1 + PLAINTEXT_LENGTH + 45 + 1] = { 0 };
@@ -653,8 +636,8 @@ eigrp_read (struct thread *thread)
     {
       nbr = eigrp_nbr_get(ei, eigrph, iph);
 
-      /* neighbor must be valid */
-      if (nbr == NULL) return 0;
+      /* neighbor must be valid, eigrp_nbr_get creates if none existed */
+      assert(nbr);
 
      struct eigrp_packet *ep;
 

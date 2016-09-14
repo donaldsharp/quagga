@@ -1,6 +1,6 @@
 /*
  * EIGRP VTY Interface.
- * Copyright (C) 2013-2015
+ * Copyright (C) 2013-2016
  * Authors:
  *   Donnie Savage
  *   Jan Janovic
@@ -43,7 +43,7 @@
 #include "zclient.h"
 #include "keychain.h"
 #include "linklist.h"
-#include "zebra/interface.h"
+#include "distribute.h"
 
 #include "eigrpd/eigrp_structs.h"
 #include "eigrpd/eigrpd.h"
@@ -218,7 +218,7 @@ DEFUN (eigrp_router_id,
        "Router ID for this EIGRP process\n"
        "EIGRP Router-ID in IP address format\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -232,7 +232,7 @@ DEFUN (no_eigrp_router_id,
        "Router ID for this EIGRP process\n"
        "EIGRP Router-ID in IP address format\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -244,7 +244,7 @@ DEFUN (eigrp_passive_interface,
        "Suppress routing updates on an interface\n"
        INT_TYPES_DESC)
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -257,7 +257,7 @@ DEFUN (no_eigrp_passive_interface,
        "Suppress routing updates on an interface\n"
        INT_TYPES_DESC)
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -271,7 +271,7 @@ DEFUN (eigrp_timers_active,
        "Active state time limit in minutes\n"
        "Disable time limit for active state\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -286,7 +286,7 @@ DEFUN (no_eigrp_timers_active,
        "Active state time limit in minutes\n"
        "Disable time limit for active state\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -304,7 +304,7 @@ DEFUN (eigrp_metric_weights,
        "K4\n"
        "K5\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -321,7 +321,7 @@ DEFUN (no_eigrp_metric_weights,
        "K4\n"
        "K5\n")
 {
-  struct eigrp *eigrp = vty->index;
+  //struct eigrp *eigrp = vty->index;
   /*TODO: */
 
   return CMD_SUCCESS;
@@ -381,8 +381,7 @@ DEFUN (eigrp_neighbor,
        "Neighbor address\n"
        INT_TYPES_DESC)
 {
-  struct eigrp *eigrp = vty->index;
-  struct prefix_ipv4 p;
+  //struct eigrp *eigrp = vty->index;
 
   return CMD_SUCCESS;
 }
@@ -395,8 +394,7 @@ DEFUN (no_eigrp_neighbor,
        "Neighbor address\n"
        INT_TYPES_DESC)
 {
-  struct eigrp *eigrp = vty->index;
-  struct prefix_ipv4 p;
+  //struct eigrp *eigrp = vty->index;
 
   return CMD_SUCCESS;
 }
@@ -1089,7 +1087,7 @@ DEFUN (eigrp_redistribute_source_metric,
        "EIGRP MTU of the path\n")
 {
   struct eigrp *eigrp = vty->index;
-  struct eigrp_metrics metrics_from_command;
+  struct eigrp_metrics metrics_from_command = { 0 };
   int source;
 
   /* Get distribute source. */
@@ -1242,91 +1240,269 @@ DEFUN (no_eigrp_maximum_paths,
     return CMD_SUCCESS;
 }
 
-DEFUN (ip_eigrp_network,
-	   ip_eigrp_network_cmd,
-	   "ip eigrp network (point-to-multipoint)",
-	   IP_STR
-	   EIGRP_STR
-	   "Network type\n"
-       "Specify EIGRP point-to-multipoint network\n")
+/*
+ * Execute hard restart for all neighbors
+ */
+DEFUN (clear_ip_eigrp_neighbors,
+	  clear_ip_eigrp_neighbors_cmd,
+	  "clear ip eigrp neighbors",
+	  CLEAR_STR
+	  IP_STR
+	  "Clear IP-EIGRP\n"
+	  "Clear IP-EIGRP neighbors\n")
 {
-  struct eigrp_interface *ei;
-  struct interface *ifp;
+	struct eigrp *eigrp;
+	struct eigrp_interface *ei;
+	struct listnode *node, *node2, *nnode2;
+	struct eigrp_neighbor *nbr;
 
-  /* get configured interface */
-  ifp = (struct interface *) vty->index;
-  assert (ifp);
-  ei = eigrp_if_lookup(ifp, eigrp_lookup());
-  assert (ei);
-  /* set selected network type */
-  ei->type = EIGRP_IFTYPE_POINTOMULTIPOINT;
+	/* Check if eigrp process is enabled */
+	eigrp = eigrp_lookup ();
+	if (eigrp == NULL)
+	{
+		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
 
-  return CMD_SUCCESS;
+	/* iterate over all eigrp interfaces */
+	for (ALL_LIST_ELEMENTS_RO (eigrp->eiflist, node, ei))
+	{
+		/* send Goodbye Hello */
+		eigrp_hello_send(ei, EIGRP_HELLO_GRACEFUL_SHUTDOWN, NULL);
+
+		/* iterate over all neighbors on eigrp interface */
+		for (ALL_LIST_ELEMENTS (ei->nbrs, node2, nnode2, nbr))
+		{
+			if (nbr->state != EIGRP_NEIGHBOR_DOWN)
+			{
+				zlog_debug ("Neighbor %s (%s) is down: manually cleared",
+							inet_ntoa (nbr->src),
+							ifindex2ifname (nbr->ei->ifp->ifindex));
+				vty_time_print (vty, 0);
+				vty_out (vty, "Neighbor %s (%s) is down: manually cleared%s",
+						inet_ntoa (nbr->src),
+						ifindex2ifname (nbr->ei->ifp->ifindex),
+						VTY_NEWLINE);
+
+				/* set neighbor to DOWN */
+				nbr->state = EIGRP_NEIGHBOR_DOWN;
+				/* delete neighbor */
+				eigrp_nbr_delete (nbr);
+			}
+		}
+	}
+
+	return CMD_SUCCESS;
 }
 
-DEFUN (no_ip_eigrp_network,
-	   no_ip_eigrp_network_cmd,
-	   "no ip eigrp network (point-to-multipoint)",
-	   NO_STR
+/*
+ * Execute hard restart for all neighbors on interface
+ */
+DEFUN (clear_ip_eigrp_neighbors_int,
+	   clear_ip_eigrp_neighbors_int_cmd,
+       "clear ip eigrp neighbors (IFNAME)",
+	   CLEAR_STR
 	   IP_STR
-	   EIGRP_STR
-	   "Network type\n"
-       "Specify EIGRP point-to-multipoint network\n")
+	   "Clear IP-EIGRP\n"
+	   "Clear IP-EIGRP neighbors\n"
+	   "Interface's name\n")
 {
-  struct eigrp_interface *ei;
-  struct interface *ifp;
+	struct eigrp *eigrp;
+	struct eigrp_interface *ei;
+	struct listnode *node2, *nnode2;
+	struct eigrp_neighbor *nbr;
 
-  /* get configured interface */
-  ifp = (struct interface *) vty->index;
-  assert (ifp);
-  ei = eigrp_if_lookup(ifp, eigrp_lookup());
-  assert (ei);
-  /* reset default type */
-  ei->type = eigrp_default_iftype(ifp);
+	/* Check if eigrp process is enabled */
+	eigrp = eigrp_lookup ();
+	if (eigrp == NULL)
+	{
+		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
 
-  return CMD_SUCCESS;
+	/* lookup interface by specified name */
+	ei = eigrp_if_lookup_by_name(eigrp, argv[0]);
+	if(ei == NULL)
+	{
+		vty_out (vty, " Interface (%s) doesn't exist%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	/* send Goodbye Hello */
+	eigrp_hello_send(ei, EIGRP_HELLO_GRACEFUL_SHUTDOWN, NULL);
+
+	/* iterate over all neighbors on eigrp interface */
+	for (ALL_LIST_ELEMENTS (ei->nbrs, node2, nnode2, nbr))
+	{
+		if (nbr->state != EIGRP_NEIGHBOR_DOWN)
+		{
+			zlog_debug ("Neighbor %s (%s) is down: manually cleared",
+						inet_ntoa (nbr->src),
+						ifindex2ifname (nbr->ei->ifp->ifindex));
+			vty_time_print (vty, 0);
+			vty_out (vty, "Neighbor %s (%s) is down: manually cleared%s",
+					inet_ntoa (nbr->src),
+					ifindex2ifname (nbr->ei->ifp->ifindex),
+					VTY_NEWLINE);
+
+			/* set neighbor to DOWN */
+			nbr->state = EIGRP_NEIGHBOR_DOWN;
+			/* delete neighbor */
+			eigrp_nbr_delete (nbr);
+		}
+	}
+
+	return CMD_SUCCESS;
 }
 
-DEFUN (ip_eigrp_hub_and_spoke_role,
-	   ip_eigrp_hub_and_spoke_role_cmd,
-	   "ip eigrp hub-and-spoke role (hub|spoke)",
+/*
+ * Execute hard restart for neighbor specified by IP
+ */
+DEFUN (clear_ip_eigrp_neighbors_IP,
+	   clear_ip_eigrp_neighbors_IP_cmd,
+       "clear ip eigrp neighbors A.B.C.D",
+	   CLEAR_STR
 	   IP_STR
-	   EIGRP_STR
-	   "Hub and Spoke\n"
-	   "Role in Hub and Spoke topology\n")
+	   "Clear IP-EIGRP\n"
+	   "Clear IP-EIGRP neighbors\n"
+       "IP-EIGRP neighbor address\n")
 {
-  struct interface *ifp;
+	struct eigrp *eigrp;
+  	struct eigrp_neighbor *nbr;
+  	struct in_addr nbr_addr;
 
-  /* get configured interface */
-  ifp = (struct interface *) vty->index;
-  assert (ifp);
-  /* set selected Hub-and-Spoke role */
-  if (strncmp (argv[0], "h", 1) == 0)
-	IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_HUB;
-  else if (strncmp (argv[0], "s", 1) == 0)
-	IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_SPOKE;
+  	VTY_GET_IPV4_ADDRESS ("neighbor address", nbr_addr, argv[0]);
 
-  return CMD_SUCCESS;
+  	/* Check if eigrp process is enabled */
+  	eigrp = eigrp_lookup ();
+  	if (eigrp == NULL)
+  	{
+  		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+  		return CMD_SUCCESS;
+  	}
+
+  	/* lookup neighbor in whole process */
+	nbr = eigrp_nbr_lookup_by_addr_process(eigrp, nbr_addr);
+
+	/* if neighbor doesn't exists, notify user and exit */
+	if(nbr == NULL)
+	{
+		vty_out (vty, "Neighbor with entered address doesn't exists.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+  	/* execute hard reset on neighbor */
+  	eigrp_nbr_hard_restart(nbr, vty);
+
+  	return CMD_SUCCESS;
 }
 
-DEFUN (no_ip_eigrp_hub_and_spoke_role,
-	   no_ip_eigrp_hub_and_spoke_role_cmd,
-	   "no ip eigrp hub-and-spoke role",
-	   NO_STR
-	   IP_STR
-	   EIGRP_STR
-	   "Hub and Spoke\n"
-	   "Role in Hub and Spoke topology\n")
+/*
+ * Execute graceful restart for all neighbors
+ */
+DEFUN (clear_ip_eigrp_neighbors_soft,
+	  clear_ip_eigrp_neighbors_soft_cmd,
+	  "clear ip eigrp neighbors soft",
+	  CLEAR_STR
+	  IP_STR
+	  "Clear IP-EIGRP\n"
+	  "Clear IP-EIGRP neighbors\n"
+	  "Resync with peers without adjacency reset\n")
 {
-  struct interface *ifp;
+	struct eigrp *eigrp;
 
-  /* get configured interface */
-  ifp = (struct interface *) vty->index;
-  assert (ifp);
-  /* reset Hub-and-Spoke role */
-  IF_DEF_PARAMS (ifp)->hs_role = EIGRP_HSROLE_DEFAULT;
+	/* Check if eigrp process is enabled */
+	eigrp = eigrp_lookup ();
+	if (eigrp == NULL)
+	{
+		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
 
-  return CMD_SUCCESS;
+	/* execute graceful restart on all neighbors */
+	eigrp_update_send_process_GR(eigrp, EIGRP_GR_MANUAL, vty);
+
+	return CMD_SUCCESS;
+}
+
+/*
+ * Execute graceful restart for all neighbors on interface
+ */
+DEFUN (clear_ip_eigrp_neighbors_int_soft,
+	   clear_ip_eigrp_neighbors_int_soft_cmd,
+       "clear ip eigrp neighbors (IFNAME) soft",
+	   CLEAR_STR
+	   IP_STR
+	   "Clear IP-EIGRP\n"
+	   "Clear IP-EIGRP neighbors\n"
+	   "Interface's name\n"
+	   "Resync with peer without adjacency reset\n")
+{
+	struct eigrp *eigrp;
+	struct eigrp_interface *ei;
+
+	/* Check if eigrp process is enabled */
+	eigrp = eigrp_lookup ();
+	if (eigrp == NULL)
+	{
+		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+
+	/* lookup interface by specified name */
+	ei = eigrp_if_lookup_by_name(eigrp, argv[0]);
+	if(ei == NULL)
+	{
+		vty_out (vty, " Interface (%s) doesn't exist%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	/* execute graceful restart for all neighbors on interface */
+	eigrp_update_send_interface_GR(ei, EIGRP_GR_MANUAL, vty);
+	return CMD_SUCCESS;
+}
+
+/*
+ * Execute graceful restart for neighbor specified by IP
+ */
+DEFUN (clear_ip_eigrp_neighbors_IP_soft,
+	   clear_ip_eigrp_neighbors_IP_soft_cmd,
+       "clear ip eigrp neighbors A.B.C.D soft",
+	   CLEAR_STR
+	   IP_STR
+	   "Clear IP-EIGRP\n"
+	   "Clear IP-EIGRP neighbors\n"
+       "IP-EIGRP neighbor address\n"
+	   "Resync with peer without adjacency reset\n")
+{
+	struct eigrp *eigrp;
+	struct eigrp_neighbor *nbr;
+	struct in_addr nbr_addr;
+
+	VTY_GET_IPV4_ADDRESS ("neighbor address", nbr_addr, argv[0]);
+
+	/* Check if eigrp process is enabled */
+	eigrp = eigrp_lookup ();
+	if (eigrp == NULL)
+	{
+		vty_out (vty, " EIGRP Routing Process not enabled%s", VTY_NEWLINE);
+		return CMD_SUCCESS;
+	}
+
+	/* lookup neighbor in whole process */
+	nbr = eigrp_nbr_lookup_by_addr_process(eigrp, nbr_addr);
+
+	/* if neighbor doesn't exists, notify user and exit */
+	if(nbr == NULL)
+	{
+		vty_out (vty, "Neighbor with entered address doesn't exists.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	/* execute graceful restart on neighbor */
+	eigrp_update_send_GR(nbr, EIGRP_GR_MANUAL, vty);
+
+	return CMD_SUCCESS;
 }
 
 static struct cmd_node eigrp_node =
@@ -1434,15 +1610,10 @@ eigrp_vty_if_init (void)
   install_element (INTERFACE_NODE, &eigrp_authentication_keychain_cmd);
   install_element (INTERFACE_NODE, &no_eigrp_authentication_keychain_cmd);
 
-  /* EIGRP Summarization commands */
+  /*EIGRP Summarization commands*/
   install_element (INTERFACE_NODE, &eigrp_ip_summary_address_cmd);
   install_element (INTERFACE_NODE, &no_eigrp_ip_summary_address_cmd);
 
-  /* EIGRP Hub-and-Spoke network commands */
-  install_element (INTERFACE_NODE, &ip_eigrp_network_cmd);
-  install_element (INTERFACE_NODE, &no_ip_eigrp_network_cmd);
-  install_element (INTERFACE_NODE, &ip_eigrp_hub_and_spoke_role_cmd);
-  install_element (INTERFACE_NODE, &no_ip_eigrp_hub_and_spoke_role_cmd);
 
 }
 
@@ -1481,7 +1652,14 @@ eigrp_vty_init (void)
   install_element (EIGRP_NODE, &eigrp_neighbor_cmd);
   install_element (EIGRP_NODE, &no_eigrp_neighbor_cmd);
 
-
+  /* commands for manual hard restart */
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_cmd);
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_int_cmd);
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_IP_cmd);
+  /* commands for manual graceful restart */
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_soft_cmd);
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_int_soft_cmd);
+  install_element (ENABLE_NODE, &clear_ip_eigrp_neighbors_IP_soft_cmd);
 
   eigrp_vty_zebra_init ();
 }

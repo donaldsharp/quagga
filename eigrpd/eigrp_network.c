@@ -37,6 +37,7 @@
 #include "sockopt.h"
 #include "privs.h"
 #include "table.h"
+#include "vty.h"
 
 extern struct zebra_privs_t eigrpd_privs;
 
